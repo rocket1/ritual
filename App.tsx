@@ -1,4 +1,5 @@
 // Import single weights by subpath so the bundle doesn't ship every weight.
+import { Cinzel_700Bold } from '@expo-google-fonts/cinzel/700Bold';
 import { IBMPlexMono_400Regular } from '@expo-google-fonts/ibm-plex-mono/400Regular';
 import { IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono/500Medium';
 import { Marcellus_400Regular } from '@expo-google-fonts/marcellus/400Regular';
@@ -17,6 +18,7 @@ import { C, currentTheme, subscribeTheme, themeVersion } from './src/theme';
 
 export default function App() {
   const [loaded] = useFonts({
+    Cinzel_700Bold,
     Marcellus_400Regular,
     Spectral_400Regular,
     Spectral_400Regular_Italic,

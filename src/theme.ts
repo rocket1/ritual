@@ -40,6 +40,7 @@ export const C: Palette = { ...THEMES[0].c };
 
 export const F = {
   display: 'Marcellus_400Regular',
+  wordmark: 'Cinzel_700Bold',
   body: 'Spectral_400Regular',
   bodyItalic: 'Spectral_400Regular_Italic',
   bodyBold: 'Spectral_600SemiBold',

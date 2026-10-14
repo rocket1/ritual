@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { KIND_INFO, KIND_ORDER, TIERS, TRUTH_SHARE } from '../game/data';
 import { ATTR_RANGE, ATTRS, COSTS } from '../game/engine';
 import { C, F, fs, KIND_COLOR, S } from '../theme';
@@ -292,6 +292,27 @@ function Bullets({ items }: { items: React.ReactNode[] }) {
   );
 }
 function Table({ head, rows, flex = head.length === 2 ? [1, 3] : [1.1, 1, 2.6] }: { head: string[]; rows: React.ReactNode[][]; flex?: number[] }) {
+  const { width } = useWindowDimensions();
+  const cellOf = (cell: React.ReactNode, ci: number) =>
+    typeof cell === 'string'
+      ? ci === 0 ? <Body size={14} style={{ fontFamily: F.bodyBold }}>{cell}</Body> : ci === 1 && head.length === 3 && cell.length <= 24 ? <Mono size={12} color={C.muted}>{cell}</Mono> : <Body size={14} color={C.muted}>{cell}</Body>
+      : cell;
+  // Too narrow for columns: stack each row so long words never split mid-word.
+  if (width < 640) {
+    return (
+      <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 4, overflow: 'hidden' }}>
+        {rows.map((r, ri) => (
+          <View key={ri} style={{ paddingHorizontal: S.md, paddingVertical: S.sm, gap: 4, borderTopWidth: ri ? 1 : 0, borderColor: C.lineSoft }}>
+            <Row gap={S.md} wrap style={{ alignItems: 'baseline', rowGap: 4 }}>
+              {cellOf(r[0], 0)}
+              {r.length === 3 && r[1] !== '' && cellOf(r[1], 1)}
+            </Row>
+            {r.slice(r.length === 3 ? 2 : 1).map((cell, ci) => <View key={ci}>{cellOf(cell, ci + (r.length === 3 ? 2 : 1))}</View>)}
+          </View>
+        ))}
+      </View>
+    );
+  }
   return (
     <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 4, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', backgroundColor: C.raised, paddingHorizontal: S.md, paddingVertical: S.sm, gap: S.md }}>
@@ -301,9 +322,7 @@ function Table({ head, rows, flex = head.length === 2 ? [1, 3] : [1.1, 1, 2.6] }
         <View key={ri} style={{ flexDirection: 'row', paddingHorizontal: S.md, paddingVertical: S.sm, gap: S.md, borderTopWidth: 1, borderColor: C.lineSoft }}>
           {r.map((cell, ci) => (
             <View key={ci} style={{ flex: flex[ci], minWidth: 0 }}>
-              {typeof cell === 'string'
-                ? ci === 0 ? <Body size={14} style={{ fontFamily: F.bodyBold }}>{cell}</Body> : ci === 1 && head.length === 3 && cell.length <= 24 ? <Mono size={12} color={C.muted}>{cell}</Mono> : <Body size={14} color={C.muted}>{cell}</Body>
-                : cell}
+              {cellOf(cell, ci)}
             </View>
           ))}
         </View>

@@ -23,9 +23,6 @@ import { ThemeButton } from './ui/ThemePicker';
 
 const HOUR_MS = 4000;
 
-// Marcellus ships one weight, so a tight same-color shadow thickens the strokes for the wordmark.
-const heavy = (w: number) => ({ textShadowColor: C.gold, textShadowOffset: { width: w, height: 0 }, textShadowRadius: 0.01 });
-
 export function Shell() {
   const g = useG();
   const { width } = useWindowDimensions();
@@ -72,7 +69,7 @@ function Sidebar({ tab, setTab, unread }: { tab: Tab; setTab: (t: Tab) => void; 
   const [confirm, setConfirm] = useState(false);
   return (
     <View style={{ width: fs(232), backgroundColor: C.sunken, borderRightWidth: 1, borderColor: C.lineSoft, paddingVertical: S.xl, paddingHorizontal: S.lg, gap: S.xl }}>
-      <Display size={34} color={C.gold} style={[{ letterSpacing: 4 }, heavy(0.9)]}>RITUAL</Display>
+      <Display size={34} color={C.gold} style={{ fontFamily: F.wordmark, letterSpacing: 3 }}>RITUAL</Display>
       <Row gap={S.sm}>
         <GodMark glyph={g.player.glyph} color={g.player.color} size={34} />
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -125,7 +122,7 @@ function TopBar({ compact }: { compact: boolean }) {
   const g = useG();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: compact ? S.md : S.xl, paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: 1, borderColor: C.lineSoft, backgroundColor: C.bg }}>
-      {compact && <Display size={24} color={C.gold} style={[{ letterSpacing: 3 }, heavy(0.6)]}>RITUAL</Display>}
+      {compact && <Display size={24} color={C.gold} style={{ fontFamily: F.wordmark, letterSpacing: 2 }}>RITUAL</Display>}
       <Metric label="Relics" value={g.relics.toLocaleString()} color={C.gold} />
       <Metric label="Followers" value={followersOf(g, PLAYER).toLocaleString()} />
       {!compact && <Metric label="Tier" value={TIERS[g.tierIndex].name} />}
