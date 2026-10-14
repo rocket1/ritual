@@ -9,6 +9,7 @@ import { act, clockHeld, holdClock, setGame, useG } from './game/store';
 import { DuelGame } from './rituals/Games';
 import { RitualPlayer } from './rituals/RitualPlayer';
 import { Charity } from './screens/Charity';
+import { Guide } from './screens/Guide';
 import { MapScreen } from './screens/MapScreen';
 import { Myth } from './screens/Myth';
 import { Pantheon } from './screens/Pantheon';
@@ -41,7 +42,7 @@ export function Shell() {
   const ui = useMemo(() => ({ go: setTab, openRitual: setRitualId, openDuel: () => setDuel(true), wide }), [wide]);
   const unread = g.rituals.filter((r) => r.status === 'offered').length;
 
-  const Screen = { temple: Temple, rituals: Rituals, map: MapScreen, pantheon: Pantheon, myth: Myth, wisdom: Wisdom, charity: Charity }[tab];
+  const Screen = { temple: Temple, rituals: Rituals, map: MapScreen, pantheon: Pantheon, myth: Myth, wisdom: Wisdom, charity: Charity, guide: Guide }[tab];
 
   return (
     <UiContext.Provider value={ui}>
@@ -160,7 +161,7 @@ function BottomTabs({ tab, setTab, unread, bottom }: { tab: Tab; setTab: (t: Tab
         return (
           <Pressable key={t.id} onPress={() => setTab(t.id)} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ flex: 1, alignItems: 'center', paddingVertical: 8, gap: 2 }}>
             <Text style={{ color: on ? C.gold : C.faint, fontSize: fs(17) }}>{t.glyph}</Text>
-            <Text style={{ fontFamily: F.mono, fontSize: fs(9), color: on ? C.text : C.faint }}>{t.label}{t.id === 'rituals' && unread ? ` ${unread}` : ''}</Text>
+            <Text style={{ fontFamily: F.mono, fontSize: fs(9), color: on ? C.text : C.faint }}>{t.id === 'guide' ? 'Guide' : t.label}{t.id === 'rituals' && unread ? ` ${unread}` : ''}</Text>
           </Pressable>
         );
       })}

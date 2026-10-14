@@ -62,7 +62,7 @@ export function Rituals() {
       </View>
 
       <View style={{ flexDirection: wide ? 'row' : 'column', gap: S.lg, alignItems: 'flex-start' }}>
-        <View style={{ flex: 2, gap: S.lg, width: wide ? undefined : '100%' }}>
+        <View style={{ flex: wide ? 2 : undefined, gap: S.lg, width: wide ? undefined : '100%' }}>
           <Panel title={`Demanded by ${g.player.name}`} right={<Mono size={11} color={C.faint}>{fromGod.length} open</Mono>}>
             {fromGod.length ? fromGod.map((r) => <RitualRow key={r.id} r={r} />) : <Italic>Your god is quiet. New demands arrive throughout the day.</Italic>}
           </Panel>
@@ -88,7 +88,7 @@ export function Rituals() {
           </Panel>
         </View>
 
-        <View style={{ flex: 1, gap: S.lg, width: wide ? undefined : '100%' }}>
+        <View style={{ flex: wide ? 1 : undefined, gap: S.lg, width: wide ? undefined : '100%' }}>
           <Panel title="The five orders">
             {KIND_ORDER.map((k) => (
               <View key={k} style={{ gap: 2, paddingVertical: 4 }}>

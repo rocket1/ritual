@@ -17,17 +17,17 @@ export function Temple() {
   return (
     <ScrollView contentContainerStyle={{ padding: S.lg, gap: S.lg }}>
       <View style={{ flexDirection: wide ? 'row' : 'column', gap: S.lg, alignItems: 'flex-start' }}>
-        <View style={{ flex: 1.05, gap: S.lg, width: wide ? undefined : '100%' }}>
+        <View style={{ flex: wide ? 1.05 : undefined, gap: S.lg, width: wide ? undefined : '100%' }}>
           <GodCard />
           <Attributes />
         </View>
-        <View style={{ flex: 1.3, gap: S.lg, width: wide ? undefined : '100%' }}>
+        <View style={{ flex: wide ? 1.3 : undefined, gap: S.lg, width: wide ? undefined : '100%' }}>
           <OmenCard />
           <ChallengeCard />
           <TodayRituals />
           <GraceCard />
         </View>
-        <View style={{ flex: 1, gap: S.lg, width: wide ? undefined : '100%' }}>
+        <View style={{ flex: wide ? 1 : undefined, gap: S.lg, width: wide ? undefined : '100%' }}>
           <HoroscopeCard />
           <AlertsCard />
         </View>

@@ -6,7 +6,8 @@ import { setGame } from '../game/store';
 import type { Attr, Attrs, Sign } from '../game/types';
 import { alpha, C, F, S } from '../theme';
 import { ThemeButton } from '../ui/ThemePicker';
-import { Bar, Body, Btn, Display, GodMark, Italic, Label, Mono, Panel, Row, s, Stepper } from '../ui/kit';
+import { GuideContent } from './Guide';
+import { Bar, Body, Btn, Display, GodMark, Italic, Label, Mono, Panel, Row, s, Sheet, Stepper } from '../ui/kit';
 
 const START_RELICS = 1000;
 const POINT_COST = 10;
@@ -25,6 +26,7 @@ export function CreateGod() {
   const [added, setAdded] = useState<Attrs>(zero);
   const [benevolence, setBenevolence] = useState<number | null>(null);
   const [tithe, setTithe] = useState(10);
+  const [guide, setGuide] = useState(false);
 
   const spent = useMemo(() => Object.values(added).reduce((a, b) => a + b, 0) * POINT_COST, [added]);
   const left = START_RELICS - spent;
@@ -56,7 +58,10 @@ export function CreateGod() {
         <View style={{ gap: S.sm }}>
           <Row style={{ justifyContent: 'space-between' }} wrap>
             <Label color={C.gold}>Ritual · doing, not believing</Label>
-            <ThemeButton />
+            <Row gap={4}>
+              <Btn small kind="quiet" title="How to play" onPress={() => setGuide(true)} />
+              <ThemeButton />
+            </Row>
           </Row>
           <Display size={wide ? 46 : 34}>Create the god you will serve</Display>
           <Body color={C.muted} style={{ maxWidth: 640 }}>
@@ -93,7 +98,7 @@ export function CreateGod() {
         </View>
 
         <View style={{ flexDirection: wide ? 'row' : 'column', gap: S.lg, alignItems: 'flex-start' }}>
-          <Panel title="2 · Name and nature" style={{ flex: 1, width: wide ? undefined : '100%' }}>
+          <Panel title="2 · Name and nature" style={{ flex: wide ? 1 : undefined, width: wide ? undefined : '100%' }}>
             <Row gap={S.md}>
               <GodMark glyph={proto.glyph} color={col} size={56} />
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -118,7 +123,7 @@ export function CreateGod() {
             </Field>
           </Panel>
 
-          <Panel title="3 · Spend 1,000 relics on the myth" right={<Mono color={left < 0 ? C.ember : C.gold}>{left} left</Mono>} style={{ flex: 1, width: wide ? undefined : '100%' }}>
+          <Panel title="3 · Spend 1,000 relics on the myth" right={<Mono color={left < 0 ? C.ember : C.gold}>{left} left</Mono>} style={{ flex: wide ? 1 : undefined, width: wide ? undefined : '100%' }}>
             <Body size={14} color={C.muted}>Each point costs {POINT_COST} relics. These attributes decide border battles, conversions and luck.</Body>
             {ATTRS.map((a) => {
               const v = proto.attrs[a] + added[a];
@@ -157,6 +162,16 @@ export function CreateGod() {
           <Btn kind="primary" title={`Bring forth ${name.trim() || proto.name}`} onPress={() => begin()} />
           <Btn title="Quick start with a balanced god" onPress={() => begin(true)} />
         </Row>
+        {guide && (
+          <Sheet visible onClose={() => setGuide(false)} width={860}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Display size={30}>How to play</Display>
+              <Btn small kind="quiet" title="Close" onPress={() => setGuide(false)} />
+            </Row>
+            <GuideContent />
+            <Btn kind="primary" title="Close" onPress={() => setGuide(false)} />
+          </Sheet>
+        )}
       </View>
     </ScrollView>
   );

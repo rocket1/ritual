@@ -19,7 +19,7 @@ export function Myth() {
         </Body>
       </View>
       <View style={{ flexDirection: wide ? 'row' : 'column', gap: S.lg, alignItems: 'flex-start' }}>
-        <Panel title="Chronicle" style={{ flex: 2, width: wide ? undefined : '100%' }}>
+        <Panel title="Chronicle" style={{ flex: wide ? 2 : undefined, width: wide ? undefined : '100%' }}>
           {g.chronicle.map((e) => (
             <Row key={e.id} gap={S.md} style={{ alignItems: 'flex-start', paddingVertical: S.sm, borderTopWidth: 1, borderColor: C.lineSoft }}>
               <View style={{ width: fs(70) }}>
@@ -33,7 +33,7 @@ export function Myth() {
             </Row>
           ))}
         </Panel>
-        <View style={{ flex: 1, gap: S.lg, width: wide ? undefined : '100%' }}>
+        <View style={{ flex: wide ? 1 : undefined, gap: S.lg, width: wide ? undefined : '100%' }}>
           <Panel title="Offspring and sects">
             {offspring.length === 0 ? (
               <Italic>None yet. A schism can happen once your faith holds four or more villages.</Italic>

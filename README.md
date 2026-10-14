@@ -36,6 +36,7 @@ The build expects to be served from the root of a domain (`https://example.com/`
 | **Pantheon** | Rival gods with player handles. Make offerings, then propose kinship (Brother, Mother, Consort…) with negotiable terms: tithe share, non-aggression, mutual defense. Rivals accept, counter or refuse. |
 | **Myth** | A chronicle of the myth changing on its own: daily drift, turning wrathful, new epithets, schisms that spawn an offspring sect, and fusions. |
 | **Wisdom** | Scrolls of real wisdom literature, unsealed by tiers and relic milestones. They grant wisdom points. |
+| **How to play** | A full in-game guide to every rule, with tables of ritual values, tiers, terrain and costs. Also reachable from the god-creation screen. |
 | **Charity** | Free or Devotee plan, the shared pool, how your releases are split, and a ledger. |
 
 **Appearance** (in the sidebar, or ◐ on phones) offers 16 themes, including two high-contrast ones, and four text sizes. The web version starts one size up. Both choices are saved in the browser.

@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-export type Tab = 'temple' | 'rituals' | 'map' | 'pantheon' | 'myth' | 'wisdom' | 'charity';
+export type Tab = 'temple' | 'rituals' | 'map' | 'pantheon' | 'myth' | 'wisdom' | 'charity' | 'guide';
 
 export const TABS: { id: Tab; label: string; glyph: string }[] = [
   { id: 'temple', label: 'Temple', glyph: '⌂' },
@@ -10,6 +10,7 @@ export const TABS: { id: Tab; label: string; glyph: string }[] = [
   { id: 'myth', label: 'Myth', glyph: '☾' },
   { id: 'wisdom', label: 'Wisdom', glyph: '✧' },
   { id: 'charity', label: 'Charity', glyph: '♡' },
+  { id: 'guide', label: 'How to play', glyph: '?' },
 ];
 
 export interface Ui {

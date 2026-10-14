@@ -30,7 +30,7 @@ export function Charity() {
       </View>
 
       <View style={{ flexDirection: wide ? 'row' : 'column', gap: S.lg, alignItems: 'flex-start' }}>
-        <View style={{ flex: 1, gap: S.lg, width: wide ? undefined : '100%' }}>
+        <View style={{ flex: wide ? 1 : undefined, gap: S.lg, width: wide ? undefined : '100%' }}>
           <Panel tone={C.jade} title="Charity pool">
             <Display size={40} color={C.jade}>{money(c.pool)}</Display>
             <Mono size={11} color={C.muted}>waiting to be released by rituals · all players</Mono>
@@ -47,7 +47,7 @@ export function Charity() {
           </Panel>
         </View>
 
-        <View style={{ flex: 1.2, gap: S.lg, width: wide ? undefined : '100%' }}>
+        <View style={{ flex: wide ? 1.2 : undefined, gap: S.lg, width: wide ? undefined : '100%' }}>
           <Panel title="Where your releases go" right={<Mono size={11} color={total === 100 ? C.jade : C.ember}>{total}% allocated</Mono>}>
             {CHARITIES.map((ch) => {
               const pct = c.allocations.find((a) => a.id === ch.id)?.pct ?? 0;

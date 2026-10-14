@@ -125,7 +125,7 @@ export function MapScreen() {
           <Legend />
         </View>
 
-        <View style={{ flex: 1, gap: S.lg, width: wide ? undefined : '100%', minWidth: wide ? fs(300) : undefined, maxWidth: wide ? fs(380) : undefined }}>
+        <View style={{ flex: wide ? 1 : undefined, gap: S.lg, width: wide ? undefined : '100%', minWidth: wide ? fs(300) : undefined, maxWidth: wide ? fs(380) : undefined }}>
           {tile && <TilePanel tile={tile} msg={msg} setMsg={setMsg} />}
           <Panel title="Gods of this world">
             {owners.sort((a, b) => b.tiles - a.tiles).map(({ god, tiles, followers }) => {
