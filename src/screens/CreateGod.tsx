@@ -57,7 +57,7 @@ export function CreateGod() {
       <View style={{ width: '100%', maxWidth: 1120, gap: S.xl }}>
         <View style={{ gap: S.sm }}>
           <Row style={{ justifyContent: 'space-between' }} wrap>
-            <Label color={C.gold}>Ritual · doing, not believing</Label>
+            <Label color={C.gold}>Ritual</Label>
             <Row gap={4}>
               <Btn small kind="quiet" title="How to play" onPress={() => setGuide(true)} />
               <ThemeButton />

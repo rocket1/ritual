@@ -18,6 +18,7 @@ import { Temple } from './screens/Temple';
 import { Wisdom } from './screens/Wisdom';
 import { alpha, C, currentTheme, F, fs, S, TONE_COLOR } from './theme';
 import { Body, Btn, Display, GodMark, Italic, Label, Mono, Row, Sheet } from './ui/kit';
+import { Logo } from './ui/Logo';
 import { Tab, TABS, UiContext } from './ui/nav';
 import { ThemeButton } from './ui/ThemePicker';
 
@@ -68,11 +69,11 @@ function Sidebar({ tab, setTab, unread }: { tab: Tab; setTab: (t: Tab) => void; 
   const g = useG();
   const [confirm, setConfirm] = useState(false);
   return (
-    <View style={{ width: fs(210), backgroundColor: C.sunken, borderRightWidth: 1, borderColor: C.lineSoft, paddingVertical: S.xl, paddingHorizontal: S.lg, gap: S.xl }}>
-      <View style={{ gap: 2 }}>
-        <Display size={30} color={C.gold} style={{ letterSpacing: 4 }}>RITUAL</Display>
-        <Mono size={10} color={C.faint}>doing, not believing</Mono>
-      </View>
+    <View style={{ width: fs(232), backgroundColor: C.sunken, borderRightWidth: 1, borderColor: C.lineSoft, paddingVertical: S.xl, paddingHorizontal: S.lg, gap: S.xl }}>
+      <Row gap={S.sm}>
+        <Logo size={30} />
+        <Display size={34} color={C.gold} style={{ letterSpacing: 3 }}>RITUAL</Display>
+      </Row>
       <Row gap={S.sm}>
         <GodMark glyph={g.player.glyph} color={g.player.color} size={34} />
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -125,7 +126,12 @@ function TopBar({ compact }: { compact: boolean }) {
   const g = useG();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: compact ? S.md : S.xl, paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: 1, borderColor: C.lineSoft, backgroundColor: C.bg }}>
-      {compact && <Display size={20} color={C.gold} style={{ letterSpacing: 3 }}>RITUAL</Display>}
+      {compact && (
+        <Row gap={6}>
+          <Logo size={22} />
+          <Display size={24} color={C.gold} style={{ letterSpacing: 3 }}>RITUAL</Display>
+        </Row>
+      )}
       <Metric label="Relics" value={g.relics.toLocaleString()} color={C.gold} />
       <Metric label="Followers" value={followersOf(g, PLAYER).toLocaleString()} />
       {!compact && <Metric label="Tier" value={TIERS[g.tierIndex].name} />}
