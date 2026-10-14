@@ -38,14 +38,14 @@ export function Wisdom() {
                 borderRadius: 3,
                 borderWidth: 1,
                 borderColor: open ? alpha(C.gold, 0.4) : C.lineSoft,
-                backgroundColor: open ? '#E8DDC6' : C.surface,
+                backgroundColor: open ? C.paper : C.surface,
               }}
             >
               {open ? (
                 <>
-                  <Label color="#7A6544">{sc.title}</Label>
-                  <Italic size={18} color="#2A211A">{sc.text}</Italic>
-                  <Mono size={11} color="#7A6544">{sc.source}</Mono>
+                  <Label color={C.paperMuted}>{sc.title}</Label>
+                  <Italic size={18} color={C.paperText}>{sc.text}</Italic>
+                  <Mono size={11} color={C.paperMuted}>{sc.source}</Mono>
                 </>
               ) : (
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: S.sm }}>

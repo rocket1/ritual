@@ -90,13 +90,34 @@ export function neighbors(map: GameState['map'], t: Tile): Tile[] {
   return out;
 }
 
+const NAME_A = ['Ash', 'Bel', 'Cor', 'Dun', 'El', 'Fen', 'Gal', 'Har', 'Ist', 'Kel', 'Lor', 'Mar', 'Nor', 'Os', 'Pel', 'Quin', 'Ros', 'Sel', 'Tor', 'Ul', 'Ven', 'Wyn', 'Yar', 'Zor', 'Bram', 'Cal', 'Dor', 'Eld', 'Grim', 'Hal', 'Lin', 'Mor', 'Ral', 'Thorn'];
+const NAME_B = ['ford', 'by', 'wick', 'ton', 'mere', 'holm', 'dale', 'stead', 'bury', 'port', 'gate', 'haven', 'moor', 'ridge', 'well', 'crest', 'field', 'brook', 'hollow', 'march'];
+
+/** Settlement size by population. */
+export function settlement(t: Tile): 'hamlet' | 'village' | 'town' | 'city' {
+  return t.pop < 14 ? 'hamlet' : t.pop < 28 ? 'village' : t.pop < 45 ? 'town' : 'city';
+}
+
+/** Hex distance on the odd-row offset grid. */
+export function hexDist(a: Tile, b: Tile) {
+  const ax = a.x - (a.y - (a.y & 1)) / 2;
+  const bx = b.x - (b.y - (b.y & 1)) / 2;
+  const dx = ax - bx;
+  const dz = a.y - b.y;
+  return Math.max(Math.abs(dx), Math.abs(dz), Math.abs(dx + dz));
+}
+
+export function hasRoad(map: GameState['map'], a: number, b: number) {
+  return map.roads.some(([p, q]) => (p === a && q === b) || (p === b && q === a));
+}
+
 function genMap(seed: number): GameState['map'] {
   const r = mulberry(seed);
   const tiles: Tile[] = [];
   let elev: number[] = [];
   for (let i = 0; i < W * H; i++) elev.push(r());
-  const map = { w: W, h: H, tiles };
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) tiles.push({ id: y * W + x, x, y, terrain: 'plain', pop: 0, owner: null, wall: false, building: 0 });
+  const map: GameState['map'] = { w: W, h: H, tiles, rivers: [], roads: [] };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) tiles.push({ id: y * W + x, x, y, terrain: 'plain', name: '', river: false, pop: 0, owner: null, wall: false, building: 0 });
   for (let pass = 0; pass < 3; pass++) {
     elev = tiles.map((t) => {
       const ns = neighbors(map, t);
@@ -112,25 +133,100 @@ function genMap(seed: number): GameState['map'] {
   });
   const sorted = [...elev].sort((a, b) => a - b);
   const sea = sorted[Math.floor(sorted.length * 0.2)];
-  const high = sorted[Math.floor(sorted.length * 0.86)];
+  const high = sorted[Math.floor(sorted.length * 0.82)];
+  const peak = sorted[Math.floor(sorted.length * 0.94)];
   for (const t of tiles) {
     const e = elev[t.id];
     let terrain: Terrain = 'plain';
     if (e < sea) terrain = 'water';
+    else if (e > peak) terrain = 'mountain';
     else if (e > high) terrain = 'hill';
     else {
       const v = r();
       terrain = v < 0.3 ? 'forest' : v < 0.42 ? 'desert' : 'plain';
     }
     t.terrain = terrain;
-    t.pop = terrain === 'water' ? 0 : terrain === 'plain' ? 20 + Math.floor(r() * 25) : terrain === 'forest' ? 12 + Math.floor(r() * 14) : terrain === 'hill' ? 8 + Math.floor(r() * 12) : 4 + Math.floor(r() * 9);
+    t.pop = terrain === 'water' ? 0
+      : terrain === 'plain' ? 20 + Math.floor(r() * 25)
+      : terrain === 'forest' ? 12 + Math.floor(r() * 14)
+      : terrain === 'hill' ? 8 + Math.floor(r() * 12)
+      : terrain === 'mountain' ? 2 + Math.floor(r() * 5)
+      : 4 + Math.floor(r() * 9);
+  }
+
+  // Rivers run downhill from the high country until they reach the sea or another river.
+  const sources = tiles.filter((t) => t.terrain === 'mountain' || t.terrain === 'hill').sort(() => r() - 0.5).slice(0, 6);
+  for (const src of sources) {
+    if (src.river) continue;
+    const path = [src];
+    let cur = src;
+    let ended = false;
+    for (let step = 0; step < 30; step++) {
+      const ns = neighbors(map, cur).filter((n) => !path.includes(n));
+      if (!ns.length) break;
+      const next = ns.reduce((a, b) => (elev[b.id] < elev[a.id] ? b : a));
+      path.push(next);
+      if (next.terrain === 'water' || next.river) { ended = true; break; }
+      cur = next;
+    }
+    if (!ended || path.length < 4) continue;
+    for (const t of path) {
+      if (t.terrain === 'water') continue;
+      t.river = true;
+      if (t.terrain === 'desert') t.terrain = 'plain'; // an oasis valley
+      if (t.terrain !== 'mountain') t.pop += 8;
+    }
+    map.rivers.push(path.map((t) => t.id));
+  }
+
+  // Name every settlement.
+  const used = new Set<string>();
+  for (const t of tiles) {
+    if (t.terrain === 'water') continue;
+    let name = '';
+    for (let i = 0; i < 30 && (!name || used.has(name)); i++) name = NAME_A[Math.floor(r() * NAME_A.length)] + NAME_B[Math.floor(r() * NAME_B.length)];
+    used.add(name);
+    t.name = name;
+  }
+
+  // Roads join the larger towns: a spanning tree, each link routed overland around mountains.
+  const towns = tiles.filter((t) => t.terrain !== 'water' && t.terrain !== 'mountain' && t.pop >= 28);
+  const passable = (t: Tile) => t.terrain !== 'water' && t.terrain !== 'mountain';
+  const roadKeys = new Set<string>();
+  const addRoad = (a: Tile, b: Tile) => {
+    const key = a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`;
+    if (roadKeys.has(key)) return;
+    roadKeys.add(key);
+    map.roads.push([a.id, b.id]);
+  };
+  const route = (from: Tile, to: Tile) => {
+    const prev = new Map<number, Tile | null>([[from.id, null]]);
+    const q = [from];
+    while (q.length) {
+      const t = q.shift()!;
+      if (t === to) break;
+      for (const n of neighbors(map, t)) if (passable(n) && !prev.has(n.id)) { prev.set(n.id, t); q.push(n); }
+    }
+    if (!prev.has(to.id)) return;
+    for (let t: Tile = to; prev.get(t.id); t = prev.get(t.id)!) addRoad(t, prev.get(t.id)!);
+  };
+  if (towns.length) {
+    const tree = [towns[0]];
+    const rest = towns.slice(1);
+    while (rest.length) {
+      let best = { a: tree[0], b: rest[0], d: Infinity, i: 0 };
+      for (const a of tree) rest.forEach((b, i) => { const d = hexDist(a, b); if (d < best.d) best = { a, b, d, i }; });
+      rest.splice(best.i, 1);
+      tree.push(best.b);
+      if (best.d <= 7) route(best.a, best.b);
+    }
   }
   return map;
 }
 
 function popCap(t: Tile) {
-  const base = t.terrain === 'plain' ? 60 : t.terrain === 'forest' ? 40 : t.terrain === 'hill' ? 30 : 18;
-  return base + t.building * 25;
+  const base = t.terrain === 'plain' ? 60 : t.terrain === 'forest' ? 40 : t.terrain === 'hill' ? 30 : t.terrain === 'mountain' ? 10 : 18;
+  return base + t.building * 25 + (t.river ? 15 : 0);
 }
 
 function claimCluster(map: GameState['map'], start: Tile, owner: string, size: number) {
@@ -172,7 +268,7 @@ function makeRivals(planetIndex: number, playerProto: string): God[] {
 }
 
 function placeGods(g: GameState) {
-  const land = g.map.tiles.filter((t) => t.terrain !== 'water');
+  const land = g.map.tiles.filter((t) => t.terrain !== 'water' && t.terrain !== 'mountain');
   const cx = (W - 1) / 2;
   const cy = (H - 1) / 2;
   const start = [...land].sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy))[0];
@@ -373,7 +469,7 @@ function disaster(g: GameState, cause: string) {
     t.owner = null;
     t.wall = false;
     t.building = 0;
-    extra = ' A village lost its faith.';
+    extra = ` ${t.name} lost its faith.`;
   } else {
     for (const t of mine) t.pop = Math.max(1, Math.round(t.pop * 0.85));
   }
@@ -499,17 +595,19 @@ function contest(g: GameState, from: Tile, to: Tile, forceBattle = false) {
   if (!to.owner) {
     let p = 0.04 + att.attrs.charisma / 350 + from.building * 0.03 + Math.max(0, att.benevolence) / 1200;
     if (to.terrain === 'desert') p *= 0.6;
+    if (to.terrain === 'mountain') p *= 0.4;
+    if (hasRoad(g.map, from.id, to.id)) p *= 1.6;
     if (rand() < p) {
       to.owner = att.id;
-      if (att.id === PLAYER) alert(g, `Your myth spread to a ${to.terrain} village (${to.pop} souls).`, 'good');
+      if (att.id === PLAYER) alert(g, `Your myth spread to ${to.name}, a ${settlement(to)} of ${to.pop} souls.`, 'good');
     }
     return;
   }
   if (isKin(g, att.id, to.owner)) return;
-  if (!forceBattle && rand() > 0.35) return;
+  if (!forceBattle && rand() > (hasRoad(g.map, from.id, to.id) ? 0.5 : 0.35)) return;
   const def = godById(g, to.owner)!;
   const swing = (god: God) => 0.75 + rand() * 0.5 * (1 - god.attrs.evidence / 200);
-  let defScore = might(def) * swing(def) + (to.wall ? 18 : 0) + to.building * 8 + (to.terrain === 'hill' ? 6 : 0);
+  let defScore = might(def) * swing(def) + (to.wall ? 18 : 0) + to.building * 8 + (to.terrain === 'hill' ? 6 : to.terrain === 'mountain' ? 14 : 0);
   if (def.id === PLAYER) {
     for (const [gid, rel] of Object.entries(g.relations)) {
       if (rel.terms?.mutualDefense) {
@@ -525,8 +623,8 @@ function contest(g: GameState, from: Tile, to: Tile, forceBattle = false) {
     to.wall = false;
     to.building = Math.max(0, to.building - 1) as Tile['building'];
     to.pop = Math.max(1, Math.round(to.pop * 0.85));
-    if (prev === PLAYER) { g.stats.lost++; alert(g, `${att.name} seized one of your villages at the border.`, 'bad'); }
-    if (att.id === PLAYER) { g.stats.won++; alert(g, `Your faithful overran a village of ${def.name}.`, 'good'); }
+    if (prev === PLAYER) { g.stats.lost++; alert(g, `${att.name} seized ${to.name} at the border.`, 'bad'); }
+    if (att.id === PLAYER) { g.stats.won++; alert(g, `Your faithful took ${to.name} from ${def.name}.`, 'good'); }
   }
 }
 
@@ -769,7 +867,7 @@ export function buildWall(g: GameState, tileId: number) {
   if (t.owner !== PLAYER || t.wall || g.relics < COSTS.wall) return false;
   g.relics -= COSTS.wall;
   t.wall = true;
-  alert(g, 'Walls rise around a village.', 'info');
+  alert(g, `Walls rise around ${t.name}.`, 'info');
   return true;
 }
 export function buildingCost(t: Tile) {
@@ -781,7 +879,7 @@ export function build(g: GameState, tileId: number) {
   if (t.owner !== PLAYER || g.relics < cost) return false;
   g.relics -= cost;
   t.building = (t.building + 1) as Tile['building'];
-  alert(g, `A ${BUILDING_NAMES[t.building].toLowerCase()} is consecrated.`, 'good');
+  alert(g, `A ${BUILDING_NAMES[t.building].toLowerCase()} is consecrated in ${t.name}.`, 'good');
   return true;
 }
 
@@ -797,10 +895,10 @@ export function sendMissionaries(g: GameState, tileId: number): boolean | null {
   const ok = rand() < clamp(chance, 0.05, 0.95);
   if (ok) {
     t.owner = PLAYER;
-    alert(g, `Your missionaries converted a village${target ? ` of ${target.name}` : ''}.`, 'good');
+    alert(g, `Your missionaries converted ${t.name}${target ? `, once faithful to ${target.name}` : ''}.`, 'good');
     if (target && g.relations[target.id]) g.relations[target.id].favor = clamp(g.relations[target.id].favor - 8, -100, 100);
   } else {
-    alert(g, 'Your missionaries were turned away.', 'bad');
+    alert(g, `Your missionaries were turned away from ${t.name}.`, 'bad');
   }
   return ok;
 }
@@ -825,7 +923,7 @@ export function crusade(g: GameState, tileId: number): { ok: boolean; text: stri
     alert(g, `You marched on your own kin. ${def.name} renounces your pantheon.`, 'bad');
   }
   const atk = might(g.player) * (0.8 + rand() * 0.4) + g.army * 4;
-  const dScore = might(def) * (0.8 + rand() * 0.4) + (t.wall ? 18 : 0) + t.building * 8 + (t.terrain === 'hill' ? 6 : 0);
+  const dScore = might(def) * (0.8 + rand() * 0.4) + (t.wall ? 18 : 0) + t.building * 8 + (t.terrain === 'hill' ? 6 : t.terrain === 'mountain' ? 14 : 0);
   if (rel) rel.favor = clamp(rel.favor - 15, -100, 100);
   if (atk > dScore) {
     const lost = randInt(1, 3);
@@ -834,14 +932,14 @@ export function crusade(g: GameState, tileId: number): { ok: boolean; text: stri
     t.wall = false;
     t.building = Math.max(0, t.building - 1) as Tile['building'];
     g.stats.won++;
-    const text = `The crusade took a village from ${def.name}. ${lost} soldiers fell.`;
+    const text = `The crusade took ${t.name} from ${def.name}. ${lost} soldiers fell.`;
     alert(g, text, 'good');
     return { ok: true, text };
   }
   const lost = randInt(2, 5);
   g.army = Math.max(0, g.army - lost);
   g.stats.lost++;
-  const text = `The crusade broke against ${def.name}'s defenders. ${lost} soldiers fell.`;
+  const text = `The crusade broke against the walls of ${t.name}. ${lost} soldiers fell.`;
   alert(g, text, 'bad');
   return { ok: false, text };
 }

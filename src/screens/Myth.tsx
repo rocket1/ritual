@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { clockOf, dayOf, mythShift, PLAYER } from '../game/engine';
 import { act, useG } from '../game/store';
-import { C, S } from '../theme';
+import { C, fs, S } from '../theme';
 import { Body, Btn, Display, GodMark, Italic, Label, Mono, Panel, Row } from '../ui/kit';
 import { useUi } from '../ui/nav';
 
@@ -22,7 +22,7 @@ export function Myth() {
         <Panel title="Chronicle" style={{ flex: 2, width: wide ? undefined : '100%' }}>
           {g.chronicle.map((e) => (
             <Row key={e.id} gap={S.md} style={{ alignItems: 'flex-start', paddingVertical: S.sm, borderTopWidth: 1, borderColor: C.lineSoft }}>
-              <View style={{ width: 70 }}>
+              <View style={{ width: fs(70) }}>
                 <Mono size={11} color={C.muted}>day {dayOf(e.hour)}</Mono>
                 <Mono size={10} color={C.faint}>{clockOf(e.hour)}</Mono>
               </View>

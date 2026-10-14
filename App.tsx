@@ -7,13 +7,13 @@ import { Spectral_400Regular_Italic } from '@expo-google-fonts/spectral/400Regul
 import { Spectral_600SemiBold } from '@expo-google-fonts/spectral/600SemiBold';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useGame } from './src/game/store';
 import { CreateGod } from './src/screens/CreateGod';
 import { Shell } from './src/Shell';
-import { C } from './src/theme';
+import { C, currentTheme, subscribeTheme, themeVersion } from './src/theme';
 
 export default function App() {
   const [loaded] = useFonts({
@@ -25,10 +25,12 @@ export default function App() {
     IBMPlexMono_500Medium,
   });
   const game = useGame();
+  // Re-render everything when the theme or text size changes.
+  useSyncExternalStore(subscribeTheme, themeVersion, themeVersion);
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
+      <StatusBar style={currentTheme().dark ? 'light' : 'dark'} />
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {!loaded ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

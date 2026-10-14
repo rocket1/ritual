@@ -20,13 +20,15 @@ export interface God {
   profile: string;
 }
 
-export type Terrain = 'plain' | 'forest' | 'hill' | 'desert' | 'water';
+export type Terrain = 'plain' | 'forest' | 'hill' | 'mountain' | 'desert' | 'water';
 
 export interface Tile {
   id: number;
   x: number;
   y: number;
   terrain: Terrain;
+  name: string; // the settlement on this land
+  river: boolean;
   pop: number;
   owner: string | null;
   wall: boolean;
@@ -153,7 +155,7 @@ export interface GameState {
   gods: God[];
   relations: Record<string, Relation>;
   pantheonName: string | null;
-  map: { w: number; h: number; tiles: Tile[] };
+  map: { w: number; h: number; tiles: Tile[]; rivers: number[][]; roads: [number, number][] };
   rituals: Ritual[];
   omen: Omen | null;
   graceRequests: GraceRequest[];

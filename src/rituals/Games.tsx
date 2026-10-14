@@ -225,9 +225,9 @@ export function PlacardGame({ spec, onDone }: Props<'placard'>) {
   return (
     <View style={{ gap: S.lg }}>
       <GpsNote text={`Checked in at ${spec.place}`} />
-      <View style={{ backgroundColor: '#E9DFC9', padding: S.lg, borderRadius: 2 }}>
-        <Label color="#6B5A42">Placard</Label>
-        <Body color="#2A211A" style={{ marginTop: 6 }}>{pl.text}</Body>
+      <View style={{ backgroundColor: C.paper, padding: S.lg, borderRadius: 2, borderWidth: 1, borderColor: C.line }}>
+        <Label color={C.paperMuted}>Placard</Label>
+        <Body color={C.paperText} style={{ marginTop: 6 }}>{pl.text}</Body>
       </View>
       <Body style={{ fontFamily: F.bodyBold }}>{pl.q}</Body>
       <View style={{ gap: S.sm }}>

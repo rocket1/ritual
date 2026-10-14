@@ -15,9 +15,10 @@ import { Pantheon } from './screens/Pantheon';
 import { Rituals } from './screens/Rituals';
 import { Temple } from './screens/Temple';
 import { Wisdom } from './screens/Wisdom';
-import { alpha, C, F, S } from './theme';
+import { alpha, C, currentTheme, F, fs, S, TONE_COLOR } from './theme';
 import { Body, Btn, Display, GodMark, Italic, Label, Mono, Row, Sheet } from './ui/kit';
 import { Tab, TABS, UiContext } from './ui/nav';
+import { ThemeButton } from './ui/ThemePicker';
 
 const HOUR_MS = 4000;
 
@@ -66,7 +67,7 @@ function Sidebar({ tab, setTab, unread }: { tab: Tab; setTab: (t: Tab) => void; 
   const g = useG();
   const [confirm, setConfirm] = useState(false);
   return (
-    <View style={{ width: 220, backgroundColor: C.sunken, borderRightWidth: 1, borderColor: C.lineSoft, paddingVertical: S.xl, paddingHorizontal: S.lg, gap: S.xl }}>
+    <View style={{ width: fs(210), backgroundColor: C.sunken, borderRightWidth: 1, borderColor: C.lineSoft, paddingVertical: S.xl, paddingHorizontal: S.lg, gap: S.xl }}>
       <View style={{ gap: 2 }}>
         <Display size={30} color={C.gold} style={{ letterSpacing: 4 }}>RITUAL</Display>
         <Mono size={10} color={C.faint}>doing, not believing</Mono>
@@ -92,8 +93,8 @@ function Sidebar({ tab, setTab, unread }: { tab: Tab; setTab: (t: Tab) => void; 
                 backgroundColor: on ? alpha(C.gold, 0.12) : (st as { hovered?: boolean }).hovered ? C.surface : 'transparent',
               })}
             >
-              <Text style={{ width: 18, textAlign: 'center', color: on ? C.gold : C.faint, fontSize: 15 }}>{t.glyph}</Text>
-              <Text style={{ flex: 1, fontFamily: F.display, fontSize: 16, color: on ? C.text : C.muted, letterSpacing: 0.6 }}>{t.label}</Text>
+              <Text style={{ width: fs(18), textAlign: 'center', color: on ? C.gold : C.faint, fontSize: fs(15) }}>{t.glyph}</Text>
+              <Text style={{ flex: 1, fontFamily: F.display, fontSize: fs(16), color: on ? C.text : C.muted, letterSpacing: 0.6 }}>{t.label}</Text>
               {t.id === 'rituals' && unread > 0 && <Mono size={11} color={C.gold}>{unread}</Mono>}
               {t.id === 'temple' && g.omen && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.gold }} />}
             </Pressable>
@@ -110,7 +111,10 @@ function Sidebar({ tab, setTab, unread }: { tab: Tab; setTab: (t: Tab) => void; 
           </Row>
         </View>
       ) : (
-        <Btn small kind="quiet" title="New god" onPress={() => setConfirm(true)} />
+        <View style={{ gap: 2 }}>
+          <ThemeButton />
+          <Btn small kind="quiet" title="New god" onPress={() => setConfirm(true)} />
+        </View>
       )}
     </View>
   );
@@ -132,6 +136,7 @@ function TopBar({ compact }: { compact: boolean }) {
         </View>
         <Btn small kind="quiet" title={g.paused ? '▶' : '❚❚'} onPress={() => act((gg) => { gg.paused = !gg.paused; })} />
         <Btn small kind={g.speed === 4 ? 'primary' : 'quiet'} title="×4" onPress={() => act((gg) => { gg.speed = gg.speed === 4 ? 1 : 4; })} />
+        {compact && <ThemeButton title="◐" />}
         {!compact && <Btn small title="Pass 8 h" onPress={() => act((gg) => { for (let i = 0; i < 8; i++) advanceHour(gg); })} />}
       </Row>
     </View>
@@ -154,8 +159,8 @@ function BottomTabs({ tab, setTab, unread, bottom }: { tab: Tab; setTab: (t: Tab
         const on = t.id === tab;
         return (
           <Pressable key={t.id} onPress={() => setTab(t.id)} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ flex: 1, alignItems: 'center', paddingVertical: 8, gap: 2 }}>
-            <Text style={{ color: on ? C.gold : C.faint, fontSize: 17 }}>{t.glyph}</Text>
-            <Text style={{ fontFamily: F.mono, fontSize: 9, color: on ? C.text : C.faint }}>{t.label}{t.id === 'rituals' && unread ? ` ${unread}` : ''}</Text>
+            <Text style={{ color: on ? C.gold : C.faint, fontSize: fs(17) }}>{t.glyph}</Text>
+            <Text style={{ fontFamily: F.mono, fontSize: fs(9), color: on ? C.text : C.faint }}>{t.label}{t.id === 'rituals' && unread ? ` ${unread}` : ''}</Text>
           </Pressable>
         );
       })}
@@ -163,7 +168,6 @@ function BottomTabs({ tab, setTab, unread, bottom }: { tab: Tab; setTab: (t: Tab
   );
 }
 
-const TOAST_COLOR = { info: C.muted, good: C.jade, bad: C.ember, sacred: C.gold };
 
 function Toasts() {
   const g = useG();
@@ -181,7 +185,7 @@ function Toasts() {
   return (
     <View pointerEvents="box-none" style={{ position: 'absolute', top: 64, right: S.lg, width: Math.min(360, width - S.lg * 2), gap: S.sm }}>
       {shown.map((a) => (
-        <Pressable key={a.id} onPress={() => act(() => { a.seen = true; })} style={{ backgroundColor: C.raised, borderWidth: 1, borderColor: alpha(TOAST_COLOR[a.tone], 0.6), borderLeftWidth: 3, borderLeftColor: TOAST_COLOR[a.tone], borderRadius: 3, padding: S.md, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
+        <Pressable key={a.id} onPress={() => act(() => { a.seen = true; })} style={{ backgroundColor: C.raised, borderWidth: 1, borderColor: alpha(TONE_COLOR[a.tone], 0.6), borderLeftWidth: 3, borderLeftColor: TONE_COLOR[a.tone], borderRadius: 3, padding: S.md, shadowColor: '#000', shadowOpacity: currentTheme().dark ? 0.4 : 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
           <Body size={13}>{a.text}</Body>
         </Pressable>
       ))}

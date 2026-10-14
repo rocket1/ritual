@@ -2,25 +2,25 @@ import React from 'react';
 import {
   Modal, Platform, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextProps, TextStyle, View, ViewStyle,
 } from 'react-native';
-import { alpha, C, F, S } from '../theme';
+import { alpha, C, F, fs, mix, S } from '../theme';
 
 type TProps = TextProps & { style?: StyleProp<TextStyle>; color?: string; size?: number };
 
 export function Display({ style, color, size = 28, ...p }: TProps) {
-  return <Text {...p} style={[{ fontFamily: F.display, color: color ?? C.text, fontSize: size, lineHeight: size * 1.18, letterSpacing: 0.4 }, style]} />;
+  return <Text {...p} style={[{ fontFamily: F.display, color: color ?? C.text, fontSize: fs(size), lineHeight: fs(size * 1.18), letterSpacing: 0.4 }, style]} />;
 }
 export function Body({ style, color, size = 16, ...p }: TProps) {
-  return <Text {...p} style={[{ fontFamily: F.body, color: color ?? C.text, fontSize: size, lineHeight: size * 1.45 }, style]} />;
+  return <Text {...p} style={[{ fontFamily: F.body, color: color ?? C.text, fontSize: fs(size), lineHeight: fs(size * 1.45) }, style]} />;
 }
 export function Italic({ style, color, size = 16, ...p }: TProps) {
-  return <Text {...p} style={[{ fontFamily: F.bodyItalic, color: color ?? C.muted, fontSize: size, lineHeight: size * 1.45 }, style]} />;
+  return <Text {...p} style={[{ fontFamily: F.bodyItalic, color: color ?? C.muted, fontSize: fs(size), lineHeight: fs(size * 1.45) }, style]} />;
 }
 export function Mono({ style, color, size = 13, ...p }: TProps) {
-  return <Text {...p} style={[{ fontFamily: F.mono, color: color ?? C.text, fontSize: size, fontVariant: ['tabular-nums'] }, style]} />;
+  return <Text {...p} style={[{ fontFamily: F.mono, color: color ?? C.text, fontSize: fs(size), fontVariant: ['tabular-nums'] }, style]} />;
 }
 /** Small uppercase label used for section eyebrows and field names. */
 export function Label({ style, color, size = 11, ...p }: TProps) {
-  return <Text {...p} style={[{ fontFamily: F.monoBold, color: color ?? C.faint, fontSize: size, letterSpacing: 1.4, textTransform: 'uppercase' }, style]} />;
+  return <Text {...p} style={[{ fontFamily: F.monoBold, color: color ?? C.faint, fontSize: fs(size), letterSpacing: 1.4, textTransform: 'uppercase' }, style]} />;
 }
 
 type BtnKind = 'primary' | 'ghost' | 'danger' | 'quiet';
@@ -49,14 +49,14 @@ export function Btn({
           justifyContent: 'center',
           opacity: disabled ? 0.4 : 1,
         };
-        if (kind === 'primary') Object.assign(base, { backgroundColor: pressed ? C.goldDim : hovered ? '#E6B95F' : tint, borderColor: tint });
+        if (kind === 'primary') Object.assign(base, { backgroundColor: pressed ? C.goldDim : hovered ? mix(tint, C.text, 0.18) : tint, borderColor: tint });
         else if (kind === 'quiet') Object.assign(base, { backgroundColor: hovered ? C.raised : 'transparent', borderColor: 'transparent' });
         else Object.assign(base, { backgroundColor: pressed ? alpha(tint, 0.25) : hovered ? alpha(tint, 0.12) : 'transparent', borderColor: alpha(tint, 0.6) });
         if (focused && Platform.OS === 'web') Object.assign(base, { outlineColor: C.gold, outlineWidth: 2, outlineStyle: 'solid' });
         return [base, style];
       }}
     >
-      <Text style={{ fontFamily: F.monoBold, fontSize: small ? 11 : 12, letterSpacing: 1.1, textTransform: 'uppercase', color: kind === 'primary' ? C.sunken : tint }}>
+      <Text style={{ fontFamily: F.monoBold, fontSize: fs(small ? 11 : 12), letterSpacing: 1.1, textTransform: 'uppercase', color: kind === 'primary' ? C.onAccent : tint }}>
         {title}
       </Text>
     </Pressable>
@@ -89,7 +89,7 @@ export function Bar({ value, max = 100, color = C.gold, height = 6 }: { value: n
 export function Chip({ text, color = C.muted, filled }: { text: string; color?: string; filled?: boolean }) {
   return (
     <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 2, borderWidth: 1, borderColor: alpha(color, 0.6), backgroundColor: filled ? alpha(color, 0.18) : 'transparent' }}>
-      <Text style={{ fontFamily: F.monoBold, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color }}>{text}</Text>
+      <Text style={{ fontFamily: F.monoBold, fontSize: fs(10), letterSpacing: 1, textTransform: 'uppercase', color }}>{text}</Text>
     </View>
   );
 }
@@ -106,7 +106,7 @@ export function Stepper({ value, onMinus, onPlus, minusDisabled, plusDisabled, w
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       <Btn small title="−" onPress={onMinus} disabled={minusDisabled} />
-      <Mono style={{ width, textAlign: 'center' }}>{value}</Mono>
+      <Mono style={{ width: fs(width), textAlign: 'center' }}>{value}</Mono>
       <Btn small title="+" onPress={onPlus} disabled={plusDisabled} />
     </View>
   );
@@ -144,10 +144,11 @@ export function Stat({ label, value, color }: { label: string; value: string | n
   );
 }
 
-export const s = StyleSheet.create({
-  panel: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 4, padding: S.lg, gap: S.md },
-  panelHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  scrim: { flex: 1, backgroundColor: 'rgba(8,6,5,0.78)', alignItems: 'center', justifyContent: 'center', padding: S.lg },
-  sheet: { width: '100%', maxHeight: '92%', backgroundColor: C.surface, borderWidth: 1, borderColor: C.goldDim, borderRadius: 4 },
-  input: { fontFamily: F.body, fontSize: 16, color: C.text, backgroundColor: C.sunken, borderWidth: 1, borderColor: C.line, borderRadius: 3, paddingHorizontal: 12, paddingVertical: 10 },
-});
+// Shared styles are getters so they pick up the current theme and text size.
+export const s = {
+  get panel(): ViewStyle { return { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 4, padding: S.lg, gap: S.md }; },
+  get panelHead(): ViewStyle { return { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }; },
+  get scrim(): ViewStyle { return { flex: 1, backgroundColor: alpha(C.sunken, 0.82), alignItems: 'center', justifyContent: 'center', padding: S.lg }; },
+  get sheet(): ViewStyle { return { width: '100%', maxHeight: '92%', backgroundColor: C.surface, borderWidth: 1, borderColor: C.goldDim, borderRadius: 4 }; },
+  get input(): TextStyle { return { fontFamily: F.body, fontSize: fs(16), color: C.text, backgroundColor: C.sunken, borderWidth: 1, borderColor: C.line, borderRadius: 3, paddingHorizontal: 12, paddingVertical: 10 }; },
+};

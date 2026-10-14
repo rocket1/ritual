@@ -6,12 +6,11 @@ import {
   feelingLucky, followersOf, godById, interpretOmen, landTiles, PLAYER, raiseAttr, refuseGrace, tilesOf,
 } from '../game/engine';
 import { act, useG } from '../game/store';
-import { alpha, C, F, KIND_COLOR, S } from '../theme';
+import { alpha, C, F, KIND_COLOR, S, TONE_COLOR } from '../theme';
 import { Bar, Body, Btn, Chip, Display, GodMark, Italic, Label, Mono, Panel, Row, Stat } from '../ui/kit';
 import { useUi } from '../ui/nav';
 import { RitualRow } from './Rituals';
 
-const TONE_COLOR = { info: C.muted, good: C.jade, bad: C.ember, sacred: C.gold };
 
 export function Temple() {
   const { wide } = useUi();

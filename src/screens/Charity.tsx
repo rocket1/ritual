@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { CHARITIES } from '../game/data';
 import { charityName, clockOf, dayOf } from '../game/engine';
 import { act, useG } from '../game/store';
-import { alpha, C, F, S } from '../theme';
+import { alpha, C, F, fs, S } from '../theme';
 import { Bar, Body, Display, Italic, Label, Mono, Panel, Row, Stepper } from '../ui/kit';
 import { useUi } from '../ui/nav';
 
@@ -70,7 +70,7 @@ export function Charity() {
             {c.released.length === 0 && <Italic>Complete a Dharma ritual to release your first gift.</Italic>}
             {c.released.slice(0, 15).map((r, i) => (
               <Row key={i} gap={S.md} style={{ paddingVertical: 4, borderTopWidth: 1, borderColor: C.lineSoft }}>
-                <Mono size={11} color={C.faint} style={{ width: 82 }}>day {dayOf(r.hour)} {clockOf(r.hour)}</Mono>
+                <Mono size={11} color={C.faint} style={{ width: fs(82) }}>day {dayOf(r.hour)} {clockOf(r.hour)}</Mono>
                 <Body size={13} style={{ flex: 1 }} numberOfLines={1}>{charityName(r.charityId)}</Body>
                 <Mono size={12} color={C.jade}>{money(r.amount)}</Mono>
               </Row>

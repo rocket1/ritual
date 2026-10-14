@@ -32,11 +32,13 @@ The build expects to be served from the root of a domain (`https://example.com/`
 | **Create** | Ten starting myths (Mayan, Shinto, Buddha, Shiva, Yoruba, Norse, …). Spend 1,000 relics on Wisdom, Power, Charisma and Evidence. Set benevolence, tithe and your sign. |
 | **Temple** | Your god, tier ladder (Prophet → Cult → Religion → Nation → Truth), attributes you can raise with relics, omens to interpret, live border challenges, requests for grace, the daily horoscope with its "feeling lucky" rite, and alerts. |
 | **Rituals** | The five orders, each with its own mini-game: Sacrifice (GPS walk or the Sisyphean stone), Meditation (go somewhere and hold still), Jnana (museum placard quiz or riddle), Dharma (ten minutes of presence, which releases charity money) and Honor (a story rated by a random pilgrim). Perform now for full relics, or queue at 75%. A broken queued promise brings a natural disaster. Also covers rites of neighboring gods, custom and trainer-assigned rituals, and a mock solver API for programmable rituals. |
-| **Map** | Hex "cells" on a fictional planet. Borders shift every hour based on each god's attributes plus chance. Build walls and churches, temples and cathedrals; send missionaries; recruit an army and crusade. At Truth your god becomes real and travels to a new planet. |
+| **Map** | Hex "cells" on a fictional planet with coastlines, mountains, forests, deserts, rivers, named towns and cities, and roads. Borders shift every hour based on each god's attributes plus chance; faith spreads faster along roads and stalls in the mountains. Build walls and churches, temples and cathedrals; send missionaries; recruit an army and crusade. At Truth your god becomes real and travels to a new planet. |
 | **Pantheon** | Rival gods with player handles. Make offerings, then propose kinship (Brother, Mother, Consort…) with negotiable terms: tithe share, non-aggression, mutual defense. Rivals accept, counter or refuse. |
 | **Myth** | A chronicle of the myth changing on its own: daily drift, turning wrathful, new epithets, schisms that spawn an offspring sect, and fusions. |
 | **Wisdom** | Scrolls of real wisdom literature, unsealed by tiers and relic milestones. They grant wisdom points. |
 | **Charity** | Free or Devotee plan, the shared pool, how your releases are split, and a ledger. |
+
+**Appearance** (in the sidebar, or ◐ on phones) offers 16 themes, including two high-contrast ones, and four text sizes. The web version starts one size up. Both choices are saved in the browser.
 
 The world clock runs at one game hour every 4 seconds. Use **×4** to speed it up, **Pass 8 h** to skip ahead, and the pause button to stop it. The clock holds still while a ritual is open.
 

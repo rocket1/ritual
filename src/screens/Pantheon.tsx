@@ -6,7 +6,7 @@ import {
 } from '../game/engine';
 import { act, useG } from '../game/store';
 import type { God, Kinship } from '../game/types';
-import { alpha, C, F, S } from '../theme';
+import { alpha, C, F, fs, S } from '../theme';
 import { Bar, Body, Btn, Chip, Display, GodMark, Italic, Label, Mono, Panel, Row, s, Sheet, Stepper } from '../ui/kit';
 import { useUi } from '../ui/nav';
 
@@ -29,7 +29,7 @@ export function Pantheon() {
       <Panel tone={C.gold} title="Your pantheon">
         {g.pantheonName ? (
           <View style={{ gap: S.sm }}>
-            <TextInput id="pantheon-name" value={g.pantheonName} onChangeText={(v) => act((gg) => { gg.pantheonName = v; })} style={[s.input, { fontFamily: F.display, fontSize: 22 }]} />
+            <TextInput id="pantheon-name" value={g.pantheonName} onChangeText={(v) => act((gg) => { gg.pantheonName = v; })} style={[s.input, { fontFamily: F.display, fontSize: fs(22) }]} />
             <Row wrap gap={S.md}>
               <Chip text={`${g.player.name} · you`} color={g.player.color} filled />
               {kin.map((k) => <Chip key={k.id} text={`${k.name} · ${g.relations[k.id].kin}`} color={k.color} filled />)}
@@ -77,9 +77,9 @@ function GodCard({ god, wide, onPropose }: { god: God; wide: boolean; onPropose:
       <View style={{ gap: 4 }}>
         {ATTRS.map((a) => (
           <Row key={a} gap={S.sm}>
-            <Mono size={10} color={C.faint} style={{ width: 70, textTransform: 'uppercase' }}>{a}</Mono>
+            <Mono size={10} color={C.faint} style={{ width: fs(70), textTransform: 'uppercase' }}>{a}</Mono>
             <View style={{ flex: 1 }}><Bar value={god.attrs[a]} color={god.color} height={4} /></View>
-            <Mono size={10} color={C.muted} style={{ width: 24, textAlign: 'right' }}>{god.attrs[a]}</Mono>
+            <Mono size={10} color={C.muted} style={{ width: fs(24), textAlign: 'right' }}>{god.attrs[a]}</Mono>
           </Row>
         ))}
       </View>

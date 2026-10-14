@@ -5,6 +5,7 @@ import { ATTR_RANGE, ATTRS, newGame } from '../game/engine';
 import { setGame } from '../game/store';
 import type { Attr, Attrs, Sign } from '../game/types';
 import { alpha, C, F, S } from '../theme';
+import { ThemeButton } from '../ui/ThemePicker';
 import { Bar, Body, Btn, Display, GodMark, Italic, Label, Mono, Panel, Row, s, Stepper } from '../ui/kit';
 
 const START_RELICS = 1000;
@@ -53,7 +54,10 @@ export function CreateGod() {
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ paddingHorizontal: S.lg, paddingVertical: S.xxl, alignItems: 'center' }}>
       <View style={{ width: '100%', maxWidth: 1120, gap: S.xl }}>
         <View style={{ gap: S.sm }}>
-          <Label color={C.gold}>Ritual · doing, not believing</Label>
+          <Row style={{ justifyContent: 'space-between' }} wrap>
+            <Label color={C.gold}>Ritual · doing, not believing</Label>
+            <ThemeButton />
+          </Row>
           <Display size={wide ? 46 : 34}>Create the god you will serve</Display>
           <Body color={C.muted} style={{ maxWidth: 640 }}>
             You shape a god, and then you become its first follower. Pick a starting myth, spend your 1,000 relics on its nature, and go perform its rituals.
