@@ -21,7 +21,7 @@ If `npm install` fails with `EACCES` in `~/.npm`, your npm cache has root-owned 
 npm run build:web
 ```
 
-This writes a static site to `dist/` (about 1.6 MB). Upload that folder to any static host: Netlify, Vercel, Cloudflare Pages, GitHub Pages, S3 or your own server. No server code is needed. The game is a single page, so no URL rewrite rules are needed either.
+This writes a static site to `dist/` (about 1.6 MB). `dist/` is committed on purpose so the site can be hosted straight from the repo with no build step, so rebuild and commit it whenever the source changes. The script also adds `.nojekyll`, which GitHub Pages needs in order to serve the `_expo` folder. Upload that folder to any static host: Netlify, Vercel, Cloudflare Pages, GitHub Pages, S3 or your own server. No server code is needed. The game is a single page, so no URL rewrite rules are needed either.
 
 The build expects to be served from the root of a domain (`https://example.com/`). To serve it from a subfolder, for example a GitHub Pages project site at `https://you.github.io/ritual/`, add `"experiments": { "baseUrl": "/ritual" }` to `app.json` and rebuild.
 
