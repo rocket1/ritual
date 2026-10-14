@@ -98,25 +98,12 @@ export function settlement(t: Tile): 'hamlet' | 'village' | 'town' | 'city' {
   return t.pop < 14 ? 'hamlet' : t.pop < 28 ? 'village' : t.pop < 45 ? 'town' : 'city';
 }
 
-/** Hex distance on the odd-row offset grid. */
-export function hexDist(a: Tile, b: Tile) {
-  const ax = a.x - (a.y - (a.y & 1)) / 2;
-  const bx = b.x - (b.y - (b.y & 1)) / 2;
-  const dx = ax - bx;
-  const dz = a.y - b.y;
-  return Math.max(Math.abs(dx), Math.abs(dz), Math.abs(dx + dz));
-}
-
-export function hasRoad(map: GameState['map'], a: number, b: number) {
-  return map.roads.some(([p, q]) => (p === a && q === b) || (p === b && q === a));
-}
-
 function genMap(seed: number): GameState['map'] {
   const r = mulberry(seed);
   const tiles: Tile[] = [];
   let elev: number[] = [];
   for (let i = 0; i < W * H; i++) elev.push(r());
-  const map: GameState['map'] = { w: W, h: H, tiles, rivers: [], roads: [] };
+  const map: GameState['map'] = { w: W, h: H, tiles, rivers: [] };
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) tiles.push({ id: y * W + x, x, y, terrain: 'plain', name: '', river: false, pop: 0, owner: null, wall: false, building: 0 });
   for (let pass = 0; pass < 3; pass++) {
     elev = tiles.map((t) => {
@@ -131,6 +118,17 @@ function genMap(seed: number): GameState['map'] {
     const dy = Math.abs(t.y - (H - 1) / 2) / (H / 2);
     return e - Math.max(dx, dy) ** 3 * 0.25;
   });
+  // A second, smoothed field for moisture groups forests and deserts into regions.
+  let wet = tiles.map(() => r());
+  for (let pass = 0; pass < 3; pass++) {
+    wet = tiles.map((t) => {
+      const ns = neighbors(map, t);
+      return (wet[t.id] * 2 + ns.reduce((s, n) => s + wet[n.id], 0)) / (ns.length + 2);
+    });
+  }
+  const wetSorted = [...wet].sort((a, b) => a - b);
+  const lush = wetSorted[Math.floor(wetSorted.length * 0.66)];
+  const arid = wetSorted[Math.floor(wetSorted.length * 0.14)];
   const sorted = [...elev].sort((a, b) => a - b);
   const sea = sorted[Math.floor(sorted.length * 0.2)];
   const high = sorted[Math.floor(sorted.length * 0.82)];
@@ -141,10 +139,7 @@ function genMap(seed: number): GameState['map'] {
     if (e < sea) terrain = 'water';
     else if (e > peak) terrain = 'mountain';
     else if (e > high) terrain = 'hill';
-    else {
-      const v = r();
-      terrain = v < 0.3 ? 'forest' : v < 0.42 ? 'desert' : 'plain';
-    }
+    else terrain = wet[t.id] > lush ? 'forest' : wet[t.id] < arid ? 'desert' : 'plain';
     t.terrain = terrain;
     t.pop = terrain === 'water' ? 0
       : terrain === 'plain' ? 20 + Math.floor(r() * 25)
@@ -155,16 +150,18 @@ function genMap(seed: number): GameState['map'] {
   }
 
   // Rivers run downhill from the high country until they reach the sea or another river.
-  const sources = tiles.filter((t) => t.terrain === 'mountain' || t.terrain === 'hill').sort(() => r() - 0.5).slice(0, 6);
+  const sources = tiles.filter((t) => t.terrain === 'mountain' || t.terrain === 'hill').sort(() => r() - 0.5);
   for (const src of sources) {
+    if (map.rivers.length >= 5) break;
     if (src.river) continue;
     const path = [src];
     let cur = src;
     let ended = false;
-    for (let step = 0; step < 30; step++) {
+    for (let step = 0; step < 14; step++) {
       const ns = neighbors(map, cur).filter((n) => !path.includes(n));
       if (!ns.length) break;
       const next = ns.reduce((a, b) => (elev[b.id] < elev[a.id] ? b : a));
+      if (elev[next.id] > elev[cur.id] && next.terrain !== 'water') break; // water never flows uphill
       path.push(next);
       if (next.terrain === 'water' || next.river) { ended = true; break; }
       cur = next;
@@ -189,38 +186,6 @@ function genMap(seed: number): GameState['map'] {
     t.name = name;
   }
 
-  // Roads join the larger towns: a spanning tree, each link routed overland around mountains.
-  const towns = tiles.filter((t) => t.terrain !== 'water' && t.terrain !== 'mountain' && t.pop >= 28);
-  const passable = (t: Tile) => t.terrain !== 'water' && t.terrain !== 'mountain';
-  const roadKeys = new Set<string>();
-  const addRoad = (a: Tile, b: Tile) => {
-    const key = a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`;
-    if (roadKeys.has(key)) return;
-    roadKeys.add(key);
-    map.roads.push([a.id, b.id]);
-  };
-  const route = (from: Tile, to: Tile) => {
-    const prev = new Map<number, Tile | null>([[from.id, null]]);
-    const q = [from];
-    while (q.length) {
-      const t = q.shift()!;
-      if (t === to) break;
-      for (const n of neighbors(map, t)) if (passable(n) && !prev.has(n.id)) { prev.set(n.id, t); q.push(n); }
-    }
-    if (!prev.has(to.id)) return;
-    for (let t: Tile = to; prev.get(t.id); t = prev.get(t.id)!) addRoad(t, prev.get(t.id)!);
-  };
-  if (towns.length) {
-    const tree = [towns[0]];
-    const rest = towns.slice(1);
-    while (rest.length) {
-      let best = { a: tree[0], b: rest[0], d: Infinity, i: 0 };
-      for (const a of tree) rest.forEach((b, i) => { const d = hexDist(a, b); if (d < best.d) best = { a, b, d, i }; });
-      rest.splice(best.i, 1);
-      tree.push(best.b);
-      if (best.d <= 7) route(best.a, best.b);
-    }
-  }
   return map;
 }
 
@@ -596,7 +561,6 @@ function contest(g: GameState, from: Tile, to: Tile, forceBattle = false) {
     let p = 0.04 + att.attrs.charisma / 350 + from.building * 0.03 + Math.max(0, att.benevolence) / 1200;
     if (to.terrain === 'desert') p *= 0.6;
     if (to.terrain === 'mountain') p *= 0.4;
-    if (hasRoad(g.map, from.id, to.id)) p *= 1.6;
     if (rand() < p) {
       to.owner = att.id;
       if (att.id === PLAYER) alert(g, `Your myth spread to ${to.name}, a ${settlement(to)} of ${to.pop} souls.`, 'good');
@@ -604,7 +568,7 @@ function contest(g: GameState, from: Tile, to: Tile, forceBattle = false) {
     return;
   }
   if (isKin(g, att.id, to.owner)) return;
-  if (!forceBattle && rand() > (hasRoad(g.map, from.id, to.id) ? 0.5 : 0.35)) return;
+  if (!forceBattle && rand() > 0.35) return;
   const def = godById(g, to.owner)!;
   const swing = (god: God) => 0.75 + rand() * 0.5 * (1 - god.attrs.evidence / 200);
   let defScore = might(def) * swing(def) + (to.wall ? 18 : 0) + to.building * 8 + (to.terrain === 'hill' ? 6 : to.terrain === 'mountain' ? 14 : 0);

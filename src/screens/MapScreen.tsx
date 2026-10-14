@@ -1,16 +1,20 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
-import Svg, { G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G, Path, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { TRUTH_SHARE } from '../game/data';
 import {
-  build, BUILDING_NAMES, buildingCost, buildWall, COSTS, crusade, followersOf, godById, hasRoad, landTiles, might,
-  neighbors, PLAYER, recruit, sendMissionaries, settlement, tilesOf,
+  build, BUILDING_NAMES, buildingCost, buildWall, COSTS, crusade, followersOf, godById, landTiles, might, neighbors,
+  PLAYER, recruit, sendMissionaries, settlement, tilesOf,
 } from '../game/engine';
 import { act, useG } from '../game/store';
-import type { GameState, Tile } from '../game/types';
+import type { GameState, Terrain, Tile } from '../game/types';
 import { C, F, fs, mix, S } from '../theme';
 import { Bar, Body, Btn, Display, GodMark, Italic, Label, Mono, Panel, Row } from '../ui/kit';
 import { useUi } from '../ui/nav';
+
+// The map is drawn in two layers. Underneath is a continuous landscape:
+// rounded coastlines, forests and mountain ranges as masses that run across
+// cell edges, and rivers. On top sits the hex grid that the game is played on.
 
 // Natural hues, blended into each theme's land color so every theme gets a
 // map that still reads as forest, rock and sand.
@@ -19,24 +23,23 @@ const HUE = { forest: '#4E9A5C', rock: '#9C948A', sand: '#D9B26F', snow: '#FFFFF
 function mapColors() {
   const land = C.land;
   return {
-    plain: land,
-    forest: mix(land, HUE.forest, 0.22),
-    hill: mix(land, HUE.rock, 0.16),
-    mountain: mix(land, HUE.rock, 0.32),
-    desert: mix(land, HUE.sand, 0.3),
+    land,
     water: C.water,
-    grid: mix(land, C.text, 0.08),
-    shore: mix(C.water, C.text, 0.35),
-    wave: mix(C.water, C.text, 0.22),
-    tree: mix(land, HUE.forest, 0.7),
-    ink: mix(land, C.text, 0.45),
-    peak: mix(land, HUE.rock, 0.75),
+    forest: mix(land, HUE.forest, 0.26),
+    hill: mix(land, HUE.rock, 0.14),
+    mountain: mix(land, HUE.rock, 0.3),
+    desert: mix(land, HUE.sand, 0.3),
+    grid: mix(land, C.text, 0.5),
+    wave: mix(C.water, C.text, 0.2),
+    tree: mix(land, HUE.forest, 0.62),
+    treeDark: mix(mix(land, HUE.forest, 0.62), C.sunken, 0.35),
+    ink: mix(land, C.text, 0.42),
+    peak: mix(land, HUE.rock, 0.7),
+    peakShade: mix(mix(land, HUE.rock, 0.7), C.sunken, 0.3),
     snow: mix(HUE.snow, land, 0.08),
-    dune: mix(land, HUE.sand, 0.75),
+    dune: mix(land, HUE.sand, 0.7),
     river: mix(C.water, HUE.river, 0.6),
-    road: mix(land, C.text, 0.5),
-    house: mix(C.text, land, 0.1),
-    houseEdge: C.sunken,
+    silt: mix(land, HUE.sand, 0.45),
   };
 }
 type Colors = ReturnType<typeof mapColors>;
@@ -73,8 +76,16 @@ function across(map: GameState['map'], t: Tile, e: Edge) {
   return x >= 0 && y >= 0 && x < map.w && y < map.h ? map.tiles[y * map.w + x] : null;
 }
 
-// Stable per-tile offsets so features don't sit in a perfect grid.
-const jitter = (id: number, k: number) => ((id * 9301 + k * 49297) % 233280) / 233280 - 0.5;
+/** A small seeded generator per tile, so the landscape is stable between renders. */
+function tileRand(id: number) {
+  let s = Math.imul(id + 1, 2654435761);
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 export function MapScreen() {
   const g = useG();
@@ -108,7 +119,7 @@ export function MapScreen() {
       <View style={{ flexDirection: wide ? 'row' : 'column', gap: S.lg, alignItems: 'flex-start' }}>
         <View
           onLayout={(e) => setBoxW(e.nativeEvent.layout.width)}
-          style={{ flex: wide ? 1.8 : undefined, width: wide ? undefined : '100%', padding: S.sm, gap: S.sm, backgroundColor: C.sunken, borderWidth: 1, borderColor: C.line, borderRadius: 4, alignItems: 'center' }}
+          style={{ flex: wide ? 1.8 : undefined, width: wide ? undefined : '100%', padding: S.sm, gap: S.sm, backgroundColor: C.water, borderWidth: 1, borderColor: C.line, borderRadius: 4, alignItems: 'center' }}
         >
           <HexMap g={g} R={R} sel={sel} onSelect={(id) => { setSel(id); setMsg(null); }} />
           <Legend />
@@ -136,7 +147,7 @@ export function MapScreen() {
               <Body>{g.army} soldiers</Body>
               <Btn small title={`Recruit · ${COSTS.soldier}`} disabled={g.relics < COSTS.soldier} onPress={() => act(recruit)} />
             </Row>
-            <Italic size={13}>Borders also shift on their own every hour. The computer resolves each clash from the gods' attributes plus chance. Faith travels faster along roads; mountains resist it.</Italic>
+            <Italic size={13}>Borders also shift on their own every hour. The computer resolves each clash from the gods' attributes plus chance. Mountains resist conversion and are easier to defend.</Italic>
           </Panel>
         </View>
       </View>
@@ -146,23 +157,27 @@ export function MapScreen() {
 
 function HexMap({ g, R, sel, onSelect }: { g: GameState; R: number; sel: number | null; onSelect: (id: number) => void }) {
   const col = mapColors();
-  const { w, center, corners, pts } = geometry(R);
+  const { w, corners, pts } = geometry(R);
   const width = w * (g.map.w + 0.5);
   const height = R * (1.5 * (g.map.h - 1) + 2);
   const tiles = g.map.tiles;
-  const labelSize = Math.max(fs(9), R * 0.36);
-  // Terrain only changes with the map, size or theme, so skip rebuilding it every hour.
-  const terrain = useMemo(() => <TerrainLayer g={g} R={R} col={col} />, [g.map, R, C.land, C.water, C.text]);
+  // The landscape only changes with the map, size or theme, so skip rebuilding it every hour.
+  const landscape = useMemo(() => <Landscape g={g} R={R} col={col} />, [g.map, R, C.land, C.water, C.text]);
 
   return (
     <Svg width={width} height={height} accessibilityLabel={`Map of ${g.planet.name}`}>
-      {terrain}
+      {landscape}
+
+      {/* the game grid, laid lightly over the land */}
+      {tiles.map((t) => (t.terrain === 'water' ? null : (
+        <Polygon key={`g${t.id}`} points={pts(corners(t))} fill="none" stroke={col.grid} strokeOpacity={0.22} strokeWidth={0.8} />
+      )))}
 
       {/* territory tint */}
       {tiles.map((t) => {
         const owner = godById(g, t.owner);
         if (!owner) return null;
-        return <Polygon key={`o${t.id}`} points={pts(corners(t))} fill={owner.color} fillOpacity={t.owner === PLAYER ? 0.4 : 0.28} />;
+        return <Polygon key={`o${t.id}`} points={pts(corners(t))} fill={owner.color} fillOpacity={t.owner === PLAYER ? 0.38 : 0.26} />;
       })}
 
       {/* borders between faiths, drawn just inside each side */}
@@ -173,7 +188,7 @@ function HexMap({ g, R, sel, onSelect }: { g: GameState; R: number; sel: number 
         return EDGES.map((e, i) => {
           const n = across(g.map, t, e);
           if (n && (n.owner === t.owner || n.terrain === 'water')) return null;
-          return <Line key={`b${t.id}-${i}`} x1={cs[e[0]].x} y1={cs[e[0]].y} x2={cs[e[1]].x} y2={cs[e[1]].y} stroke={owner.color} strokeWidth={t.owner === PLAYER ? R * 0.16 : R * 0.11} strokeLinecap="round" />;
+          return <Path key={`b${t.id}-${i}`} d={`M${cs[e[0]].x},${cs[e[0]].y} L${cs[e[1]].x},${cs[e[1]].y}`} stroke={owner.color} strokeWidth={t.owner === PLAYER ? R * 0.16 : R * 0.11} strokeLinecap="round" />;
         });
       })}
 
@@ -182,20 +197,8 @@ function HexMap({ g, R, sel, onSelect }: { g: GameState; R: number; sel: number 
         <Polygon key={`w${t.id}`} points={pts(corners(t, 0.62))} fill="none" stroke={col.ink} strokeWidth={R * 0.1} strokeDasharray={`${R * 0.16},${R * 0.08}`} />
       ))}
 
-      {/* settlements and holy buildings */}
-      {tiles.map((t) => (t.terrain === 'water' ? null : <Settlement key={`s${t.id}`} t={t} R={R} col={col} c={center(t)} />))}
-
-      {/* names of towns, cities and holy places */}
-      {R >= 20 && tiles.filter((t) => t.terrain !== 'water' && (t.pop >= 28 || t.building > 0)).map((t) => {
-        const c = center(t);
-        const props = { x: c.x, y: c.y + R * 0.78, fontSize: labelSize, fontFamily: F.body, textAnchor: 'middle' as const };
-        return (
-          <G key={`l${t.id}`}>
-            <SvgText {...props} stroke={C.sunken} strokeWidth={3} strokeLinejoin="round" fill={C.sunken}>{t.name}</SvgText>
-            <SvgText {...props} fill={t.owner === PLAYER ? C.text : col.ink}>{t.name}</SvgText>
-          </G>
-        );
-      })}
+      {/* holy buildings */}
+      {tiles.filter((t) => t.building > 0).map((t) => <Building key={`k${t.id}`} t={t} R={R} />)}
 
       {/* selection */}
       {sel != null && <Polygon points={pts(corners(tiles[sel], 0.97))} fill="none" stroke={C.text} strokeWidth={2.5} />}
@@ -208,146 +211,252 @@ function HexMap({ g, R, sel, onSelect }: { g: GameState; R: number; sel: number 
   );
 }
 
-function TerrainLayer({ g, R, col }: { g: GameState; R: number; col: Colors }) {
-  const { center, corners, pts } = geometry(R);
+type Mark = { y: number; el: React.ReactElement };
+
+function Landscape({ g, R, col }: { g: GameState; R: number; col: Colors }) {
+  const { center } = geometry(R);
   const tiles = g.map.tiles;
+  const land = tiles.filter((t) => t.terrain !== 'water');
+  const of = (...kinds: Terrain[]) => land.filter((t) => kinds.includes(t.terrain));
+
+  // Several overlapping circles per cell merge into soft, irregular masses
+  // that ignore the hex edges. `r` is the overall reach in cell radii.
+  const blobs = (list: Tile[], fill: string, r: number, key: string, parts = 4) => list.flatMap((t) => {
+    const rnd = tileRand(t.id * 7 + key.charCodeAt(0));
+    const c = center(t);
+    return Array.from({ length: parts }, (_, i) => {
+      const a = rnd() * Math.PI * 2;
+      const d = parts === 1 ? 0 : R * r * 0.42 * rnd();
+      return <Circle key={`${key}${t.id}-${i}`} cx={c.x + Math.cos(a) * d} cy={c.y + Math.sin(a) * d} r={R * r * (0.62 + rnd() * 0.18)} fill={fill} />;
+    });
+  });
+
+  // Symbols scattered across each region and drawn back to front, so forests
+  // and ranges read as continuous areas rather than one icon per cell.
+  const marks: Mark[] = [];
+  for (const t of of('forest')) {
+    const rnd = tileRand(t.id);
+    const c = center(t);
+    for (let i = 0; i < 7; i++) {
+      const x = c.x + (rnd() - 0.5) * R * 1.7;
+      const y = c.y + (rnd() - 0.5) * R * 1.5;
+      const s = R * (0.16 + rnd() * 0.08);
+      marks.push({ y, el: (
+        <G key={`tr${t.id}-${i}`}>
+          <Polygon points={`${x},${y - s * 1.6} ${x - s * 0.75},${y + s * 0.3} ${x + s * 0.75},${y + s * 0.3}`} fill={col.tree} />
+          <Polygon points={`${x},${y - s * 1.6} ${x + s * 0.75},${y + s * 0.3} ${x},${y + s * 0.3}`} fill={col.treeDark} />
+        </G>
+      ) });
+    }
+  }
+  for (const t of of('mountain')) {
+    const rnd = tileRand(t.id + 5000);
+    const c = center(t);
+    for (let i = 0; i < 4; i++) {
+      const x = c.x + (rnd() - 0.5) * R * 1.6;
+      const y = c.y + (rnd() - 0.5) * R * 1.1;
+      const h = R * (0.45 + rnd() * 0.3);
+      marks.push({ y, el: <Peak key={`pk${t.id}-${i}`} x={x} y={y} h={h} col={col} snow /> });
+    }
+  }
+  for (const t of of('hill')) {
+    const rnd = tileRand(t.id + 7000);
+    const c = center(t);
+    for (let i = 0; i < 3; i++) {
+      const x = c.x + (rnd() - 0.5) * R * 1.6;
+      const y = c.y + (rnd() - 0.5) * R * 1.3;
+      const s = R * (0.22 + rnd() * 0.12);
+      marks.push({ y, el: <Path key={`hl${t.id}-${i}`} d={`M${x - s * 1.2},${y} Q${x},${y - s * 1.1} ${x + s * 1.2},${y}`} fill="none" stroke={col.ink} strokeOpacity={0.55} strokeWidth={Math.max(1, R * 0.06)} strokeLinecap="round" /> });
+    }
+    // the occasional foothill peak where hills meet mountains
+    if (neighbors(g.map, t).some((n) => n.terrain === 'mountain') && rnd() < 0.7) {
+      marks.push({ y: c.y, el: <Peak key={`fh${t.id}`} x={c.x + (rnd() - 0.5) * R} y={c.y} h={R * 0.32} col={col} /> });
+    }
+  }
+  for (const t of of('desert')) {
+    const rnd = tileRand(t.id + 9000);
+    const c = center(t);
+    for (let i = 0; i < 3; i++) {
+      const x = c.x + (rnd() - 0.5) * R * 1.6;
+      const y = c.y + (rnd() - 0.5) * R * 1.4;
+      const s = R * 0.2;
+      marks.push({ y, el: <Path key={`dn${t.id}-${i}`} d={`M${x - s},${y} q${s * 0.5},${-s * 0.5} ${s},0 t${s},0`} fill="none" stroke={col.dune} strokeWidth={Math.max(1, R * 0.06)} strokeLinecap="round" /> });
+    }
+  }
+  marks.sort((a, b) => a.y - b.y);
+
   return (
     <G>
-      {tiles.map((t) => (
-        <Polygon key={`t${t.id}`} points={pts(corners(t))} fill={col[t.terrain]} stroke={t.terrain === 'water' ? col.water : col.grid} strokeWidth={0.6} />
-      ))}
-
-      {/* coastlines */}
-      {tiles.filter((t) => t.terrain !== 'water').map((t) => {
-        const cs = corners(t);
-        return EDGES.map((e, i) => {
-          const n = across(g.map, t, e);
-          if (n && n.terrain !== 'water') return null;
-          return <Line key={`c${t.id}-${i}`} x1={cs[e[0]].x} y1={cs[e[0]].y} x2={cs[e[1]].x} y2={cs[e[1]].y} stroke={col.shore} strokeWidth={Math.max(1.2, R * 0.07)} strokeLinecap="round" />;
-        });
-      })}
-
-      {/* waves */}
-      {tiles.filter((t) => t.terrain === 'water' && (t.id * 7) % 3 === 0).map((t) => {
+      {/* sea */}
+      <Rect x={0} y={0} width={9999} height={9999} fill={col.water} />
+      {tiles.filter((t) => t.terrain === 'water' && t.id % 3 === 0).map((t) => {
         const { x, y } = center(t);
         const s = R * 0.22;
         return <Path key={`v${t.id}`} d={`M${x - s * 1.5},${y} q${s * 0.75},${-s * 0.6} ${s * 1.5},0 t${s * 1.5},0`} fill="none" stroke={col.wave} strokeWidth={Math.max(1, R * 0.05)} strokeLinecap="round" />;
       })}
 
-      {/* terrain features, set toward the top of the hex to leave room for towns */}
-      {tiles.map((t) => <Feature key={`f${t.id}`} t={t} R={R} col={col} c={center(t)} />)}
-
-      {/* rivers */}
-      {g.map.rivers.map((path, i) => (
-        <Polyline
-          key={`r${i}`}
-          points={path.map((id, k) => {
-            const c = center(tiles[id]);
-            const end = k === 0 || k === path.length - 1;
-            return `${(c.x + (end ? 0 : jitter(id, 1) * R * 0.5)).toFixed(1)},${(c.y + (end ? 0 : jitter(id, 2) * R * 0.5)).toFixed(1)}`;
-          }).join(' ')}
-          fill="none"
-          stroke={col.river}
-          strokeWidth={Math.max(1.5, R * 0.14)}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ))}
-
-      {/* roads */}
-      {g.map.roads.map(([a, b]) => {
-        const p = center(tiles[a]);
-        const q = center(tiles[b]);
-        return <Line key={`d${a}-${b}`} x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke={col.road} strokeWidth={Math.max(1, R * 0.08)} strokeDasharray={`${R * 0.22},${R * 0.14}`} strokeLinecap="round" />;
+      {/* land with a rounded coast, then the terrain masses */}
+      {land.map((t) => {
+        const c = center(t);
+        return <Circle key={`ld${t.id}`} cx={c.x} cy={c.y} r={R * 1.08} fill={col.land} />;
       })}
+      {blobs(of('desert'), col.desert, 1.15, 'ds')}
+      {blobs(of('hill', 'mountain'), col.hill, 1.2, 'hi')}
+      {blobs(of('forest'), col.forest, 1.2, 'fo')}
+      {blobs(of('mountain'), col.mountain, 1.1, 'mo')}
+
+      {/* rivers, with their deltas */}
+      {g.map.rivers.map((path, i) => <River key={`r${i}`} path={path.map((id) => tiles[id])} R={R} col={col} seed={i} center={center} />)}
+
+      {marks.map((m) => m.el)}
     </G>
   );
 }
 
-function Feature({ t, R, col, c }: { t: Tile; R: number; col: Colors; c: { x: number; y: number } }) {
-  const s = R * 0.2;
-  const j = (k: number) => jitter(t.id, k) * R * 0.12;
-  const sw = (k: number) => Math.max(0.8, R * k);
-  switch (t.terrain) {
-    case 'forest':
-      return (
-        <G>
-          {[[-0.38, -0.22], [0, -0.42], [0.36, -0.2], [-0.12, 0.02]].map(([dx, dy], i) => {
-            const x = c.x + dx * R + j(i);
-            const y = c.y + dy * R + j(i + 5);
-            return <Polygon key={i} points={`${x},${y - s} ${x - s * 0.65},${y + s * 0.55} ${x + s * 0.65},${y + s * 0.55}`} fill={col.tree} />;
-          })}
-        </G>
-      );
-    case 'hill':
-      return (
-        <G>
-          {[[-0.3, -0.25], [0.22, -0.38]].map(([dx, dy], i) => {
-            const x = c.x + dx * R + j(i);
-            const y = c.y + dy * R;
-            return <Path key={i} d={`M${x - s * 1.1},${y + s * 0.4} Q${x},${y - s * 0.9} ${x + s * 1.1},${y + s * 0.4}`} fill="none" stroke={col.ink} strokeWidth={sw(0.06)} strokeLinecap="round" />;
-          })}
-        </G>
-      );
-    case 'mountain': {
-      const peak = (x: number, y: number, h: number, k: number) => (
-        <G key={k}>
-          <Polygon points={`${x},${y - h} ${x - h * 0.9},${y + h * 0.6} ${x + h * 0.9},${y + h * 0.6}`} fill={col.peak} stroke={col.ink} strokeWidth={sw(0.04)} strokeLinejoin="round" />
-          <Polygon points={`${x},${y - h} ${x - h * 0.3},${y - h * 0.45} ${x + h * 0.3},${y - h * 0.45}`} fill={col.snow} />
-        </G>
-      );
-      return <G>{peak(c.x - R * 0.2, c.y - R * 0.05, R * 0.42, 0)}{peak(c.x + R * 0.28, c.y + R * 0.05, R * 0.3, 1)}</G>;
-    }
-    case 'desert':
-      return (
-        <G>
-          {[[-0.35, -0.3], [0.15, -0.4], [0.3, -0.12]].map(([dx, dy], i) => {
-            const x = c.x + dx * R + j(i);
-            const y = c.y + dy * R;
-            return <Path key={i} d={`M${x - s},${y} q${s * 0.5},${-s * 0.5} ${s},0 t${s},0`} fill="none" stroke={col.dune} strokeWidth={sw(0.06)} strokeLinecap="round" />;
-          })}
-        </G>
-      );
-    case 'plain':
-      // farmland around the larger settlements
-      if (t.pop < 25) return null;
-      return (
-        <G>
-          {[0, 1, 2].map((i) => {
-            const x = c.x - R * 0.55 + i * R * 0.13;
-            const y = c.y - R * 0.35;
-            return <Line key={i} x1={x} y1={y} x2={x + R * 0.18} y2={y + R * 0.3} stroke={col.ink} strokeOpacity={0.5} strokeWidth={sw(0.04)} />;
-          })}
-        </G>
-      );
-    default:
-      return null;
+type Pt = { x: number; y: number };
+
+/** Midpoint-smoothed path through a list of points. */
+function smooth(p: Pt[], close = false) {
+  let d = `M${p[0].x.toFixed(1)},${p[0].y.toFixed(1)}`;
+  for (let k = 1; k < p.length - 1; k++) {
+    const mx = (p[k].x + p[k + 1].x) / 2;
+    const my = (p[k].y + p[k + 1].y) / 2;
+    d += ` Q${p[k].x.toFixed(1)},${p[k].y.toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
   }
+  d += ` L${p[p.length - 1].x.toFixed(1)},${p[p.length - 1].y.toFixed(1)}`;
+  return close ? `${d} Z` : d;
+}
+
+/**
+ * Turn a coarse line into a meandering one: each stretch between control
+ * points bows out to alternating sides, with a smaller ripple on top.
+ */
+function meander(p: Pt[], R: number, rnd: () => number, amp: number, steps = 12): Pt[] {
+  const out: Pt[] = [p[0]];
+  let side = rnd() < 0.5 ? 1 : -1;
+  for (let k = 0; k < p.length - 1; k++) {
+    const a = p[k];
+    const b = p[k + 1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const bow = R * amp * (0.6 + rnd() * 0.6) * side;
+    const ripple = R * amp * 0.55 * (rnd() < 0.5 ? -1 : 1) * (0.5 + rnd() * 0.5);
+    for (let i = 1; i <= steps; i++) {
+      const u = i / steps;
+      const off = bow * Math.sin(Math.PI * u) + ripple * Math.sin(4 * Math.PI * u);
+      out.push({ x: a.x + dx * u + nx * off, y: a.y + dy * u + ny * off });
+    }
+    side = -side;
+  }
+  return out;
+}
+
+/** A filled channel whose half-width runs from w0 at the start to w1 at the end. */
+function ribbon(p: Pt[], w0: number, w1: number) {
+  const left: Pt[] = [];
+  const right: Pt[] = [];
+  p.forEach((pt, k) => {
+    const a = p[Math.max(0, k - 1)];
+    const b = p[Math.min(p.length - 1, k + 1)];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const t = k / (p.length - 1);
+    const hw = w0 + (w1 - w0) * Math.pow(t, 0.8);
+    left.push({ x: pt.x - (dy / len) * hw, y: pt.y + (dx / len) * hw });
+    right.push({ x: pt.x + (dy / len) * hw, y: pt.y - (dx / len) * hw });
+  });
+  return smooth([...left, ...right.reverse()], true);
+}
+
+function River({ path, R, col, seed, center }: { path: Tile[]; R: number; col: Colors; seed: number; center: (t: Tile) => Pt }) {
+  const rnd = tileRand(path[0].id * 31 + seed);
+  const toSea = path[path.length - 1].terrain === 'water';
+  const land = toSea ? path.slice(0, -1) : path;
+
+  // Control points: cell centers, nudged off the grid.
+  const ctrl: Pt[] = land.map((t, k) => {
+    const c = center(t);
+    if (k === 0) return c;
+    return { x: c.x + (rnd() - 0.5) * R * 0.5, y: c.y + (rnd() - 0.5) * R * 0.5 };
+  });
+
+  // Where the river meets the sea, and which way the sea lies.
+  let mouth: Pt | null = null;
+  let dir: Pt = { x: 0, y: 1 };
+  if (toSea) {
+    const last = center(land[land.length - 1]);
+    const sea = center(path[path.length - 1]);
+    const len = Math.hypot(sea.x - last.x, sea.y - last.y) || 1;
+    dir = { x: (sea.x - last.x) / len, y: (sea.y - last.y) / len };
+    mouth = { x: last.x + dir.x * R * 0.6, y: last.y + dir.y * R * 0.6 };
+    ctrl.push(mouth);
+  }
+  if (ctrl.length < 2) return null;
+
+  const main = meander(ctrl, R, rnd, 0.42);
+  const wEnd = R * 0.11;
+
+  // The delta: a silt fan pushing into the sea, cut by fanning distributaries.
+  const delta: React.ReactNode[] = [];
+  if (mouth) {
+    const rot = (v: Pt, deg: number) => {
+      const a = (deg * Math.PI) / 180;
+      return { x: v.x * Math.cos(a) - v.y * Math.sin(a), y: v.x * Math.sin(a) + v.y * Math.cos(a) };
+    };
+    const reach = R * (1.15 + rnd() * 0.3);
+    const fan: Pt[] = [mouth];
+    for (let a = -62; a <= 62; a += 8) {
+      const v = rot(dir, a);
+      const r = reach * (1.05 - Math.abs(a) / 150) * (0.88 + rnd() * 0.24);
+      fan.push({ x: mouth.x + v.x * r, y: mouth.y + v.y * r });
+    }
+    fan.push(mouth);
+    delta.push(<Path key="fan" d={smooth(fan, true)} fill={col.silt} />);
+
+    const arms = 4 + (rnd() < 0.5 ? 1 : 0);
+    for (let k = 0; k < arms; k++) {
+      const ang = -48 + (96 * k) / (arms - 1) + (rnd() - 0.5) * 12;
+      const v = rot(dir, ang);
+      const len = reach * (0.75 + rnd() * 0.3) * (1 - Math.abs(ang) / 260);
+      const end = { x: mouth.x + v.x * len, y: mouth.y + v.y * len };
+      const mid = { x: (mouth.x + end.x) / 2, y: (mouth.y + end.y) / 2 };
+      const arm = meander([mouth, mid, end], R, rnd, 0.06, 6);
+      delta.push(<Path key={`arm${k}`} d={ribbon(arm, wEnd * 0.7, R * 0.045)} fill={col.river} />);
+    }
+  }
+
+  return (
+    <G>
+      {delta.length > 0 && delta[0]}
+      <Path d={ribbon(main, R * 0.025, wEnd)} fill={col.river} />
+      {delta.slice(1)}
+    </G>
+  );
+}
+
+function Peak({ x, y, h, col, snow }: { x: number; y: number; h: number; col: Colors; snow?: boolean }) {
+  return (
+    <G>
+      <Polygon points={`${x},${y - h} ${x - h * 0.95},${y + h * 0.35} ${x + h * 0.95},${y + h * 0.35}`} fill={col.peak} />
+      <Polygon points={`${x},${y - h} ${x + h * 0.95},${y + h * 0.35} ${x + h * 0.15},${y + h * 0.35}`} fill={col.peakShade} />
+      {snow && <Polygon points={`${x},${y - h} ${x - h * 0.3},${y - h * 0.58} ${x + h * 0.32},${y - h * 0.58}`} fill={col.snow} />}
+    </G>
+  );
 }
 
 const NUMERALS = ['', 'Ⅰ', 'Ⅱ', 'Ⅲ'];
 
-function Settlement({ t, R, col, c }: { t: Tile; R: number; col: Colors; c: { x: number; y: number } }) {
-  const size = settlement(t);
-  const h = R * 0.13;
-  const house = (dx: number, dy: number, k: number, scale = 1) => (
-    <Rect key={k} x={c.x + dx * R - (h * scale) / 2} y={c.y + dy * R - (h * scale) / 2} width={h * scale} height={h * scale} fill={col.house} stroke={col.houseEdge} strokeWidth={0.6} />
-  );
-  let marks: React.ReactNode[];
-  if (size === 'hamlet') marks = t.terrain === 'mountain' ? [] : [house(0.05, 0.22, 0, 0.8)];
-  else if (size === 'village') marks = [house(-0.08, 0.2, 0), house(0.12, 0.28, 1)];
-  else if (size === 'town') marks = [house(-0.14, 0.18, 0), house(0.06, 0.12, 1), house(0.18, 0.3, 2), house(-0.02, 0.34, 3)];
-  else marks = [
-    house(-0.2, 0.22, 0, 1.1), house(0, 0.12, 1, 1.2), house(0.2, 0.22, 2, 1.1), house(-0.1, 0.38, 3), house(0.12, 0.4, 4),
-    <Rect key="tower" x={c.x - h * 0.4} y={c.y - R * 0.12} width={h * 0.8} height={h * 1.6} fill={col.house} stroke={col.houseEdge} strokeWidth={0.6} />,
-  ];
+function Building({ t, R }: { t: Tile; R: number }) {
+  const { center } = geometry(R);
+  const c = center(t);
   return (
-    <G>
-      {marks}
-      {t.building > 0 && (
-        <SvgText x={c.x - R * 0.42} y={c.y + R * 0.38} fontSize={R * 0.42} fontFamily={F.display} fill={C.gold} stroke={C.sunken} strokeWidth={0.8} textAnchor="middle">{NUMERALS[t.building]}</SvgText>
-      )}
-    </G>
+    <SvgText x={c.x} y={c.y + R * 0.18} fontSize={R * 0.55} fontFamily={F.display} fill={C.gold} stroke={C.sunken} strokeWidth={1} textAnchor="middle">
+      {NUMERALS[t.building]}
+    </SvgText>
   );
 }
 
@@ -355,20 +464,19 @@ function Legend() {
   const col = mapColors();
   const item = (label: string, icon: React.ReactNode) => (
     <Row key={label} gap={6}>
-      <Svg width={22} height={14}>{icon}</Svg>
-      <Mono size={10} color={C.muted}>{label}</Mono>
+      <Svg width={22} height={16}>{icon}</Svg>
+      <Mono size={10} color={C.text}>{label}</Mono>
     </Row>
   );
   return (
-    <Row wrap gap={S.md} style={{ justifyContent: 'center', paddingVertical: 4 }}>
-      {item('road', <Line x1={1} y1={7} x2={21} y2={7} stroke={col.road} strokeWidth={2} strokeDasharray="4,3" />)}
-      {item('river', <Path d="M1,9 q5,-6 10,0 t10,0" fill="none" stroke={col.river} strokeWidth={2.5} />)}
-      {item('city', <G><Rect x={5} y={5} width={5} height={5} fill={col.house} /><Rect x={12} y={7} width={5} height={5} fill={col.house} /><Rect x={9} y={1} width={3} height={7} fill={col.house} /></G>)}
-      {item('village', <G><Rect x={6} y={5} width={4} height={4} fill={col.house} /><Rect x={12} y={7} width={4} height={4} fill={col.house} /></G>)}
-      {item('forest', <Polygon points="11,1 6,12 16,12" fill={col.tree} />)}
-      {item('mountain', <Polygon points="11,1 4,13 18,13" fill={col.peak} />)}
-      {item('walls', <Rect x={4} y={2} width={14} height={10} fill="none" stroke={col.ink} strokeWidth={1.5} strokeDasharray="3,2" />)}
-      {item('church · temple · cathedral', <SvgText x={11} y={12} fontSize={12} fontFamily={F.display} fill={C.gold} textAnchor="middle">Ⅰ</SvgText>)}
+    <Row wrap gap={S.md} style={{ justifyContent: 'center', paddingVertical: 4, paddingHorizontal: S.sm, backgroundColor: C.surface, borderRadius: 3 }}>
+      {item('forest', <Polygon points="11,1 5,14 17,14" fill={col.tree} />)}
+      {item('mountains', <G><Polygon points="8,3 1,15 15,15" fill={col.peak} /><Polygon points="15,6 9,15 21,15" fill={col.peakShade} /></G>)}
+      {item('hills', <Path d="M2,13 Q11,2 20,13" fill="none" stroke={col.ink} strokeWidth={1.5} />)}
+      {item('desert', <Path d="M1,10 q5,-5 10,0 t10,0" fill="none" stroke={col.dune} strokeWidth={1.5} />)}
+      {item('river', <Path d="M1,10 q5,-6 10,0 t10,0" fill="none" stroke={col.river} strokeWidth={2.5} />)}
+      {item('walls', <Rect x={4} y={3} width={14} height={10} fill="none" stroke={col.ink} strokeWidth={1.5} strokeDasharray="3,2" />)}
+      {item('church Ⅰ · temple Ⅱ · cathedral Ⅲ', <SvgText x={11} y={13} fontSize={13} fontFamily={F.display} fill={C.gold} textAnchor="middle">Ⅰ</SvgText>)}
     </Row>
   );
 }
@@ -380,8 +488,7 @@ function TilePanel({ tile, msg, setMsg }: { tile: Tile; msg: string | null; setM
   const adjacent = neighbors(g.map, tile).some((n) => n.owner === PLAYER);
   const cost = buildingCost(tile);
   const rel = owner && !mine ? g.relations[owner.id] : null;
-  const onRoad = neighbors(g.map, tile).some((n) => hasRoad(g.map, tile.id, n.id));
-  const features = [tile.terrain, tile.river ? 'on a river' : null, onRoad ? 'on the road' : null].filter(Boolean).join(' · ');
+  const features = [tile.terrain, tile.river ? 'on a river' : null].filter(Boolean).join(' · ');
   return (
     <Panel title="Selected land" tone={owner?.color}>
       <Row gap={S.md}>

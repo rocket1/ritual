@@ -155,7 +155,7 @@ export interface GameState {
   gods: God[];
   relations: Record<string, Relation>;
   pantheonName: string | null;
-  map: { w: number; h: number; tiles: Tile[]; rivers: number[][]; roads: [number, number][] };
+  map: { w: number; h: number; tiles: Tile[]; rivers: number[][] };
   rituals: Ritual[];
   omen: Omen | null;
   graceRequests: GraceRequest[];
